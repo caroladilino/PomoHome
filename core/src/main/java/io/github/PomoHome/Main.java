@@ -61,7 +61,7 @@ public class Main extends ApplicationAdapter {
             ArrayList<Movel> estoque = loja.getMoveis();
             for (int i = 0; i < estoque.size(); i++) {
                 float posX = POSICAO_INICIAL_X + ((i+1) * (LARGURA_SLOT + ESPACAMENTO));
-                Rectangle hitbox = new Rectangle(posX, POSICAO_LOJA_Y-ALTURA_SLOT, LARGURA_SLOT, ALTURA_SLOT);
+                Rectangle hitbox = new Rectangle(posX, Gdx.graphics.getHeight() - POSICAO_LOJA_Y - ALTURA_SLOT, LARGURA_SLOT, ALTURA_SLOT);
 
                 if (hitbox.contains(cliqueMouse)) {
                     Movel movelClicado = estoque.get(i);
