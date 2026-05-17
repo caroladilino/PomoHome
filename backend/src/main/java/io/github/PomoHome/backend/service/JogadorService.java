@@ -1,13 +1,18 @@
 package io.github.PomoHome.backend.service;
 
+import io.github.PomoHome.backend.entity.Casa;
 import io.github.PomoHome.backend.entity.Jogador;
 import io.github.PomoHome.backend.entity.Movel;
+import io.github.PomoHome.backend.entity.Slot;
+import io.github.PomoHome.backend.exception.AutenticacaoException;
 import io.github.PomoHome.backend.repository.JogadorRepository;
 import io.github.PomoHome.backend.repository.MovelRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
@@ -29,10 +34,14 @@ public class JogadorService {
 
     private final JogadorRepository jogadorRepository;
     private final MovelRepository movelRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public JogadorService(JogadorRepository jogadorRepository, MovelRepository movelRepository) {
+    public JogadorService(JogadorRepository jogadorRepository,
+                          MovelRepository movelRepository,
+                          PasswordEncoder passwordEncoder) {
         this.jogadorRepository = jogadorRepository;
         this.movelRepository = movelRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // -----------------------------------------------------------------
@@ -57,8 +66,23 @@ public class JogadorService {
      */
     @Transactional
     public Jogador cadastrar(String username, String senha) {
-        // TODO: implement following the steps above.
-        return null;
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username não pode ser vazio");
+        }
+        if (jogadorRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Username já existe");
+        }
+
+        Casa casa = new Casa(username + "'s Home");
+        casa.addSlot(new Slot("sala-sofa", "sofa"));
+        casa.addSlot(new Slot("sala-mesa", "mesa"));
+        casa.addSlot(new Slot("quarto-cama", "cama"));
+
+        Jogador jogador = new Jogador(username, passwordEncoder.encode(senha));
+        jogador.setCasa(casa);
+        casa.setDono(jogador);
+
+        return jogadorRepository.save(jogador);
     }
 
     /**
@@ -74,21 +98,22 @@ public class JogadorService {
      */
     @Transactional(readOnly = true)
     public Jogador autenticar(String username, String senha) {
-        // TODO: implement following the steps above.
-        return null;
+        Jogador jogador = jogadorRepository.findByUsername(username)
+                .orElseThrow(AutenticacaoException::new);
+        if (!passwordEncoder.matches(senha, jogador.getSenha())) {
+            throw new AutenticacaoException();
+        }
+        return jogador;
     }
 
     @Transactional(readOnly = true)
     public Optional<Jogador> buscarPorId(Long id) {
-        // TODO: just delegate to jogadorRepository.findById(id).
-        return Optional.empty();
+        return jogadorRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
     public Optional<Jogador> buscarPorUsername(String username) {
-        // TODO: delegate to jogadorRepository.findByUsername(username).
-        //       Used by the "find a friend" search bar on the frontend.
-        return Optional.empty();
+        return jogadorRepository.findByUsername(username);
     }
 
     // -----------------------------------------------------------------
@@ -110,8 +135,19 @@ public class JogadorService {
      */
     @Transactional
     public Jogador adicionarAmigo(Long jogadorId, Long amigoId) {
-        // TODO: implement following the steps above.
-        return null;
+        if (jogadorId.equals(amigoId)) {
+            throw new IllegalArgumentException("Jogador não pode se adicionar como amigo");
+        }
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(NoSuchElementException::new);
+        if (!jogadorRepository.existsById(amigoId)) {
+            throw new NoSuchElementException();
+        }
+        if (!jogador.getAmigosIds().contains(amigoId)) {
+            jogador.getAmigosIds().add(amigoId);
+            jogadorRepository.save(jogador);
+        }
+        return jogador;
     }
 
     // -----------------------------------------------------------------
@@ -132,8 +168,14 @@ public class JogadorService {
      */
     @Transactional
     public Jogador creditarMoedas(Long jogadorId, int minutosCompletos) {
-        // TODO: implement following the steps above.
-        return null;
+        if (minutosCompletos <= 0) {
+            throw new IllegalArgumentException("Minutos concluídos deve ser maior que zero");
+        }
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(NoSuchElementException::new);
+        jogador.setSaldo(jogador.getSaldo() + minutosCompletos);
+        jogador.setTempoEstudado(jogador.getTempoEstudado() + minutosCompletos);
+        return jogadorRepository.save(jogador);
     }
 
     /**
@@ -154,8 +196,16 @@ public class JogadorService {
      */
     @Transactional
     public Jogador comprarMovel(Long jogadorId, Long movelId) {
-        // TODO: implement following the steps above.
-        return null;
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(NoSuchElementException::new);
+        Movel movel = movelRepository.findById(movelId)
+                .orElseThrow(NoSuchElementException::new);
+        if (jogador.getSaldo() < movel.getPreco()) {
+            throw new IllegalArgumentException("Saldo insuficiente");
+        }
+        jogador.setSaldo(jogador.getSaldo() - movel.getPreco());
+        jogador.getInventario().add(movel);
+        return jogadorRepository.save(jogador);
     }
 
     // -----------------------------------------------------------------
@@ -171,7 +221,6 @@ public class JogadorService {
      */
     @Transactional(readOnly = true)
     public List<Jogador> listarRanking() {
-        // TODO: return jogadorRepository.findAllByOrderByTempoEstudadoDesc();
-        return List.of();
+        return jogadorRepository.findAllByOrderByTempoEstudadoDesc();
     }
 }

@@ -41,8 +41,8 @@ public class JogadorController {
      */
     @PostMapping
     public ResponseEntity<Jogador> cadastrar(@RequestBody Map<String, String> body) {
-        // TODO: implement following the steps above.
-        return ResponseEntity.status(501).build();
+        Jogador novo = jogadorService.cadastrar(body.get("username"), body.get("senha"));
+        return ResponseEntity.status(201).body(novo);
     }
 
     /**
@@ -54,8 +54,8 @@ public class JogadorController {
      */
     @PostMapping("/login")
     public ResponseEntity<Jogador> login(@RequestBody Map<String, String> body) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+        Jogador jogador = jogadorService.autenticar(body.get("username"), body.get("senha"));
+        return ResponseEntity.ok(jogador);
     }
 
     /**
@@ -68,8 +68,9 @@ public class JogadorController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<Jogador> buscarPorId(@PathVariable Long id) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+        return jogadorService.buscarPorId(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
@@ -78,8 +79,9 @@ public class JogadorController {
      */
     @GetMapping("/username/{username}")
     public ResponseEntity<Jogador> buscarPorUsername(@PathVariable String username) {
-        // TODO: delegate to jogadorService.buscarPorUsername(username).
-        return ResponseEntity.status(501).build();
+        return jogadorService.buscarPorUsername(username)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
@@ -90,8 +92,7 @@ public class JogadorController {
      */
     @PostMapping("/{id}/amigos/{amigoId}")
     public ResponseEntity<Jogador> adicionarAmigo(@PathVariable Long id, @PathVariable Long amigoId) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+        return ResponseEntity.ok(jogadorService.adicionarAmigo(id, amigoId));
     }
 
     /**
@@ -106,7 +107,6 @@ public class JogadorController {
      */
     @GetMapping("/ranking")
     public ResponseEntity<List<Jogador>> ranking() {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+        return ResponseEntity.ok(jogadorService.listarRanking());
     }
 }
