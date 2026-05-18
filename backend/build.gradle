@@ -44,6 +44,9 @@ dependencies {
     // Uncomment when you start adding @Valid annotations on DTOs.
     // implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // BCrypt password hashing (crypto module only — no auth filters)
+    implementation 'org.springframework.security:spring-security-crypto'
+
     // Tests
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

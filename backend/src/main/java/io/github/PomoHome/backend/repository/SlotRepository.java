@@ -4,14 +4,20 @@ import io.github.PomoHome.backend.entity.Slot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
- * No extra queries needed yet — JpaRepository's defaults
- * (save, findById, deleteById) are enough for the slot operations
- * we have planned (place / remove furniture).
- *
- * TODO (TEAM): when you implement "GET all slots of a given Casa", add
- *   List&lt;Slot&gt; findByCasa_Id(Long casaId);
+ * Data access for Slot. JpaRepository covers the basic CRUD used by the
+ * place / remove furniture flow; the derived query below supports móvel
+ * deletion.
  */
 @Repository
 public interface SlotRepository extends JpaRepository<Slot, Long> {
+
+    /**
+     * Every slot currently holding this Movel. Used by
+     * MovelService.removerPorId to clear movelAtual before deleting the
+     * móvel (avoids a FK constraint violation on SLOT.movel_atual_id).
+     */
+    List<Slot> findByMovelAtual_Id(Long movelId);
 }

@@ -18,12 +18,6 @@ import java.util.Optional;
  *   findByUsername(String x)                 -> WHERE username = ?
  *   findAllByOrderByTempoEstudadoDesc()      -> SELECT * ORDER BY tempo_estudado DESC
  *   findByCasa_Id(Long id)                   -> ... WHERE casa.id = ?
- *
- * TODO (TEAM):
- *   - When a derived query gets long (more than 3 conditions), prefer
- *     @Query("SELECT j FROM Jogador j WHERE ...") with JPQL.
- *   - Return Optional<T> for single-result queries (idiomatic Spring style).
- *     Never return null from a Repository method.
  */
 @Repository
 public interface JogadorRepository extends JpaRepository<Jogador, Long> {
@@ -34,12 +28,17 @@ public interface JogadorRepository extends JpaRepository<Jogador, Long> {
     /**
      * Powers GET /api/jogadores/ranking. Returns ALL players sorted by
      * tempoEstudado descending (highest study time first).
-     *
-     * TODO: when the player base grows, paginate with
-     *       List<Jogador> findAllByOrderByTempoEstudadoDesc(Pageable p);
      */
     List<Jogador> findAllByOrderByTempoEstudadoDesc();
 
     /** True when the name is already taken — used during cadastrar(). */
     boolean existsByUsername(String username);
+
+    /**
+     * Every player who has this Movel in their inventory.
+     * Used by MovelService.removerPorId to detach a móvel from all
+     * inventories before deleting it (avoids a FK constraint violation
+     * on the JOGADOR_INVENTARIO join table).
+     */
+    List<Jogador> findByInventario_Id(Long movelId);
 }

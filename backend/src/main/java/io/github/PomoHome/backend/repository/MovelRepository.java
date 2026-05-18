@@ -9,10 +9,6 @@ import java.util.List;
 /**
  * Furniture catalog. The "Loja" (store) is just a view over this table:
  * GET /api/loja  ==  movelRepository.findAll().
- *
- * TODO (TEAM): seed the catalog at startup with a CommandLineRunner bean
- * (see PomoHomeApplication or a dedicated DataSeeder @Configuration class)
- * so the store is never empty for testers.
  */
 @Repository
 public interface MovelRepository extends JpaRepository<Movel, Long> {

@@ -1,5 +1,6 @@
 package io.github.PomoHome.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 /**
@@ -9,18 +10,10 @@ import jakarta.persistence.*;
  * <p>Note (per the design brief): the original "ItemLoja" idea was MERGED
  * into Movel — i.e. a Movel IS the storefront item. There is no separate
  * Loja entity in the database; the "Loja" is simply "SELECT * FROM MOVEL".
- *
- * TODO (TEAM):
- *   - "categoria" is plain String for simplicity (e.g. "sofa", "mesa",
- *     "cama"). Slot.categoriaPermitida must match this string EXACTLY
- *     when checking compatibility. For more safety later, convert both
- *     to an enum CategoriaMovel.
- *   - Movel currently has no "imagem" / asset reference. When the team
- *     starts rendering furniture in LibGDX, add a `String spriteId` here
- *     (the client maps the id -> texture).
  */
 @Entity
 @Table(name = "MOVEL")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Movel {
 
     @Id
@@ -30,11 +23,11 @@ public class Movel {
     @Column(nullable = false)
     private String nome;
 
-    // TODO: e.g. "sofa", "mesa", "cama". Drives the Slot compatibility check.
+    /** e.g. "sofa", "mesa", "cama" — drives the Slot compatibility check. */
     @Column(nullable = false)
     private String categoria;
 
-    // TODO: cost in coins (1 coin == 1 minute studied).
+    /** Cost in coins (1 coin == 1 minute studied). */
     @Column(nullable = false)
     private int preco;
 
