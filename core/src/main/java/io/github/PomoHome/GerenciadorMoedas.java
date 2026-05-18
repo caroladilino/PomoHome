@@ -14,7 +14,7 @@ public class GerenciadorMoedas {
     private float posMoedaX, posMoedaY, raioMoedaVisual;
 
     public GerenciadorMoedas() {
-        this.saldo = 10; // O jogador sempre começa com 0 (no futuro, podemos ler de um arquivo de save aqui)
+        this.saldo = 1000; // O jogador sempre começa com 0 (no futuro, podemos ler de um arquivo de save aqui)
     }
 
     // --- REGRAS DE NEGÓCIO (ECONOMIA) ---

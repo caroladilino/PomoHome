@@ -50,6 +50,29 @@ public class Inventario {
         }
     }
 
+    // ADICIONE ESTE MÉTODO NO INVENTARIO.JAVA
+    public Movel pegarMovel(float mouseX, float mouseY) {
+        if (!expandido) return null; // Só pode pegar se estiver aberto
+
+        float startX = x + 25f;
+        float startY = height - 100f;
+        float size = 60f;
+        float espaco = 20f;
+        int colunas = 2;
+
+        for (int i = 0; i < meusMoveis.size; i++) {
+            float posX = startX + (i % colunas) * (size + espaco);
+            float posY = startY - (i / colunas) * (size + espaco + 30f);
+
+            if (mouseX >= posX && mouseX <= posX + size && mouseY >= posY && mouseY <= posY + size) {
+                Movel movelClicado = meusMoveis.get(i);
+                meusMoveis.removeIndex(i); // Tira do inventário
+                return movelClicado; // Coloca na mão
+            }
+        }
+        return null;
+    }
+
     public void desenhar(ShapeRenderer sr, SpriteBatch batch, BitmapFont fonte) {
         sr.begin(ShapeRenderer.ShapeType.Filled);
         
@@ -111,5 +134,10 @@ public class Inventario {
             }
         }
         batch.end();
+    }
+    // Adicione no final da classe Inventario.java
+    public boolean isClicadoNoPainel(float mouseX, float mouseY) {
+        if (!expandido) return false;
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
     }
 }
