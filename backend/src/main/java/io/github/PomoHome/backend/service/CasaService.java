@@ -11,6 +11,7 @@ import io.github.PomoHome.backend.repository.SlotRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
@@ -38,65 +39,64 @@ public class CasaService {
 
     @Transactional(readOnly = true)
     public Optional<Casa> buscarPorJogador(Long jogadorId) {
-        // TODO: return casaRepository.findByDono_Id(jogadorId);
-        //       Used by "visit a friend's house" and "load my house".
-        return Optional.empty();
+        return casaRepository.findByDono_Id(jogadorId);
     }
 
     /**
-     * Place a Movel from the player's inventory into a Slot.
-     *
-     * TODO (steps — the core compatibility rule lives here):
-     *   1. Load the Slot (throw if not found).
-     *   2. Load the Movel (throw if not found).
-     *   3. Load the Slot's owner Jogador via slot.getCasa().getDono().
-     *      Verify the Movel is in dono.getInventario() — refuse to place
-     *      furniture the player doesn't own.
-     *   4. Validate compatibility:
-     *        if (!slot.getCategoriaPermitida().equals(movel.getCategoria()))
-     *            throw new IllegalArgumentException(
-     *                "Móvel categoria '" + movel.getCategoria()
-     *              + "' não cabe em slot '" + slot.getCategoriaPermitida() + "'");
-     *   5. slot.setMovelAtual(movel);
-     *   6. slotRepository.save(slot); (or rely on @Transactional dirty-checking)
-     *   7. Return the updated Casa so the client can refresh its UI.
+     * Place a Movel from the player's inventory into a Slot. Enforces the
+     * core rules: the player must own the móvel, and its categoria must
+     * match the slot's categoriaPermitida. Returns the updated Casa.
      */
     @Transactional
     public Casa colocarMovelNoSlot(Long slotId, Long movelId) {
-        // TODO: implement following the steps above.
-        return null;
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new NoSuchElementException("Slot não encontrado"));
+        Movel movel = movelRepository.findById(movelId)
+                .orElseThrow(() -> new NoSuchElementException("Móvel não encontrado"));
+
+        Casa casa = slot.getCasa();
+        if (casa == null) {
+            throw new IllegalStateException("Slot não pertence a nenhuma casa");
+        }
+        Jogador dono = casa.getDono();
+        if (dono == null || !dono.getInventario().contains(movel)) {
+            throw new IllegalArgumentException("Jogador não possui esse móvel no inventário");
+        }
+
+        if (!slot.getCategoriaPermitida().equals(movel.getCategoria())) {
+            throw new IllegalArgumentException(
+                    "Móvel categoria '" + movel.getCategoria()
+                            + "' não cabe em slot '" + slot.getCategoriaPermitida() + "'");
+        }
+
+        slot.setMovelAtual(movel);
+        slotRepository.save(slot);
+        return casa;
     }
 
     /**
      * Remove whatever Movel is currently in the Slot (leave it empty).
-     *
-     * TODO (steps):
-     *   1. Load the Slot.
-     *   2. slot.setMovelAtual(null);
-     *   3. Save and return the updated Casa.
-     *   (We do NOT remove the móvel from the player's inventory — they
-     *    still own it; it just goes back to "in storage".)
+     * The móvel stays in the player's inventory — it just goes back to
+     * "in storage".
      */
     @Transactional
     public Casa removerMovelDoSlot(Long slotId) {
-        // TODO: implement following the steps above.
-        return null;
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new NoSuchElementException("Slot não encontrado"));
+        slot.setMovelAtual(null);
+        slotRepository.save(slot);
+        return slot.getCasa();
     }
 
     /**
-     * Increment the Casa's like counter (when a friend visits and likes the house).
-     *
-     * TODO (steps):
-     *   1. Load the Casa.
-     *   2. casa.setNumLikes(casa.getNumLikes() + 1);
-     *   3. save() and return.
-     *
-     * Optional but recommended: track who liked what, to prevent spam
-     * (would need a LIKE_RELATION table — out of scope for the 1-month MVP).
+     * Increment the Casa's like counter (when a friend visits and likes
+     * the house). No per-visitor dedup — a like can be given repeatedly.
      */
     @Transactional
     public Casa darLike(Long casaId) {
-        // TODO: implement following the steps above.
-        return null;
+        Casa casa = casaRepository.findById(casaId)
+                .orElseThrow(() -> new NoSuchElementException("Casa não encontrada"));
+        casa.setNumLikes(casa.getNumLikes() + 1);
+        return casaRepository.save(casa);
     }
 }

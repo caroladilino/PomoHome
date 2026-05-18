@@ -1,6 +1,7 @@
 package io.github.PomoHome.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 /**
@@ -8,12 +9,12 @@ import jakarta.persistence.*;
  *
  * A slot is only compatible with móveis whose `categoria` equals
  * this slot's `categoriaPermitida`. So a "sofa" slot only accepts sofas.
- *
- * TODO (TEAM): the compatibility check lives in CasaService.colocarMovelNoSlot
- * — NOT here. Keep entities free of business logic.
+ * The compatibility check lives in CasaService.colocarMovelNoSlot, not here —
+ * entities stay free of business logic.
  */
 @Entity
 @Table(name = "SLOT")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Slot {
 
     @Id
@@ -29,12 +30,11 @@ public class Slot {
     @JsonIgnore
     private Casa casa;
 
-    // TODO: A friendly identifier for the room/position, e.g. "sala-canto-esquerdo".
-    //       Used by the LibGDX client to know WHERE to render the móvel.
+    /** Room/position id (e.g. "sala-canto-esquerdo") used by the client to render the móvel. */
     @Column(nullable = false)
     private String nomePosicao;
 
-    // TODO: must match Movel.categoria exactly. Suggest making both an enum later.
+    /** Must match Movel.categoria exactly for placement to be allowed. */
     @Column(nullable = false)
     private String categoriaPermitida;
 

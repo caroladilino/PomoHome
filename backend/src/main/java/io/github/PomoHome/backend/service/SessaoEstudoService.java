@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Business logic for Pomodoro sessions.
@@ -32,31 +33,27 @@ public class SessaoEstudoService {
     }
 
     /**
-     * Register a completed Pomodoro and reward the player.
-     *
-     * TODO (steps):
-     *   1. Validate: minutosConcluidos > 0 (refuse negative/zero submissions).
-     *   2. Load the Jogador (throw if not found).
-     *   3. Build new SessaoEstudo(jogador, minutosConcluidos) — the
-     *      constructor sets dataHora = LocalDateTime.now().
-     *   4. sessaoRepository.save(sessao).
-     *   5. Call jogadorService.creditarMoedas(jogadorId, minutosConcluidos)
-     *      — that method bumps both saldo and tempoEstudado in one place.
-     *   6. Return the saved SessaoEstudo.
-     *
-     *   Because this is @Transactional, both saves either commit together
-     *   or rollback together — no inconsistent state where the session is
-     *   recorded but the coins were never granted.
+     * Register a completed Pomodoro and reward the player. Saving the
+     * session and crediting coins share one @Transactional, so they commit
+     * or roll back together — never a session without its coins.
      */
     @Transactional
     public SessaoEstudo registrarSessao(Long jogadorId, int minutosConcluidos) {
-        // TODO: implement following the steps above.
-        return null;
+        if (minutosConcluidos <= 0) {
+            throw new IllegalArgumentException("Minutos concluídos deve ser maior que zero");
+        }
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(() -> new NoSuchElementException("Jogador não encontrado"));
+
+        SessaoEstudo sessao = new SessaoEstudo(jogador, minutosConcluidos);
+        SessaoEstudo salva = sessaoRepository.save(sessao);
+
+        jogadorService.creditarMoedas(jogadorId, minutosConcluidos);
+        return salva;
     }
 
     @Transactional(readOnly = true)
     public List<SessaoEstudo> historicoDoJogador(Long jogadorId) {
-        // TODO: return sessaoRepository.findByJogador_IdOrderByDataHoraDesc(jogadorId);
-        return List.of();
+        return sessaoRepository.findByJogador_IdOrderByDataHoraDesc(jogadorId);
     }
 }

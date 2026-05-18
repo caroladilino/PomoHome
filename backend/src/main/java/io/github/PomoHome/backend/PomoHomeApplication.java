@@ -24,12 +24,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class PomoHomeApplication {
 
     public static void main(String[] args) {
-        // TODO: That is literally all you need. Spring Boot will:
-        //   1. Read application.properties
-        //   2. Open the H2 connection
-        //   3. Scan entities, build the schema (ddl-auto=update)
-        //   4. Start Tomcat on the configured port
-        //   5. Register every @RestController as an HTTP endpoint
+        // Boots Spring: reads application.properties, opens the H2 connection,
+        // builds the schema (ddl-auto=update), starts Tomcat and registers
+        // every @RestController as an HTTP endpoint.
         SpringApplication.run(PomoHomeApplication.class, args);
     }
 }

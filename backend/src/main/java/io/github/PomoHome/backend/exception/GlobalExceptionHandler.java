@@ -15,8 +15,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<Void> handleNotFound(NoSuchElementException e) {
-        return ResponseEntity.notFound().build();
+    public ResponseEntity<String> handleNotFound(NoSuchElementException e) {
+        String msg = e.getMessage() != null ? e.getMessage() : "Recurso não encontrado";
+        return ResponseEntity.status(404).body(msg);
     }
 
     @ExceptionHandler(AutenticacaoException.class)
