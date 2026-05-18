@@ -1,0 +1,53 @@
+// =====================================================================
+// backend/build.gradle  --  Spring Boot subproject for PomoHome
+// ---------------------------------------------------------------------
+// This module is the REST API server. It is a sibling of `core` (LibGDX
+// shared code) and `lwjgl3` (desktop launcher) inside the same Gradle
+// multi-project build (see ../settings.gradle).
+//
+// IMPORTANT for the team:
+//   * `core` and `lwjgl3` stay on Java 8 (LibGDX defaults).
+//   * `backend` is pinned to Java 17 via the toolchain block below
+//     because Spring Boot 3.x REQUIRES Java 17+.
+//   * The Spring Boot plugin overrides the parent build.gradle's
+//     `apply plugin: 'java-library'` / `sourceCompatibility = 8`.
+//     We do not need to edit the root build.gradle.
+// =====================================================================
+
+plugins {
+    id 'org.springframework.boot'        version '3.3.4'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'java'
+}
+
+// Pin this subproject to Java 17 only. The other subprojects keep Java 8.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Make sure Eclipse/IntelliJ show a readable project name for this module.
+eclipse.project.name = appName + '-backend'
+
+dependencies {
+    // Web layer (Spring MVC + embedded Tomcat on port 8080)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // JPA + Hibernate (ORM for our @Entity classes)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // H2 in-memory/file database. Only needed at runtime.
+    runtimeOnly    'com.h2database:h2'
+
+    // OPTIONAL: Bean validation (@NotNull, @Email...).
+    // Uncomment when you start adding @Valid annotations on DTOs.
+    // implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Tests
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
