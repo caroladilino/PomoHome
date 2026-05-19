@@ -1,15 +1,21 @@
 package io.github.PomoHome;
 
-import com.badlogic.gdx.graphics.Color;
-
 public class Movel {
+    public String categoria;
     public String nome;
     public int preco;
-    public Color corRepresentativa; // Para diferenciar os quadrados enquanto não temos as artes
 
-    public Movel(String nome, int preco, Color cor) {
+    // Atributos extras que precisamos manter para o grid/engine funcionar depois
+    public int widthInTiles = 1;
+    public int heightInTiles = 1;
+    public String assetId; 
+
+    public Movel(String categoria, String nome, int preco, int widthInTiles, int heightInTiles, String assetId) {
+        this.categoria = categoria;
         this.nome = nome;
         this.preco = preco;
-        this.corRepresentativa = cor;
+        this.widthInTiles = widthInTiles;
+        this.heightInTiles = heightInTiles;
+        this.assetId = assetId;
     }
 }

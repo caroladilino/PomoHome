@@ -23,7 +23,7 @@ plugins {
 // Pin this subproject to Java 17 only. The other subprojects keep Java 8.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
