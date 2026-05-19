@@ -5,10 +5,13 @@ public class Timer {
     public float tempoAtual; // Usamos float internamente para descontar os milissegundos precisos da engine
     public boolean rodando;
 
-    public Timer(int tempoCiclo) {
+    private Historico historico;
+
+    public Timer(int tempoCiclo, Historico historico) {
         this.tempoCiclo = tempoCiclo;
         this.tempoAtual = tempoCiclo;
         this.rodando = false;
+        this.historico = historico;
     }
 
     // A engine vai chamar isso todo frame
@@ -18,6 +21,9 @@ public class Timer {
             if (tempoAtual <= 0) {
                 tempoAtual = 0;
                 rodando = false;
+                if (historico != null) {
+                    historico.registrarCicloConcluido(tempoCiclo);
+                }
                 return true; // Retorna true para avisar que o Pomodoro acabou!
             }
         }

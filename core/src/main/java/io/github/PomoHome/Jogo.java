@@ -15,7 +15,7 @@ public class Jogo {
         this.historico = new Historico();
         
         // Regra antiga mantida: 53 minutos * 60 segundos
-        this.timer = new Timer(53 * 60); 
+        this.timer = new Timer(53 * 60, historico); 
         
         inicializarCatalogoLoja();
     }
