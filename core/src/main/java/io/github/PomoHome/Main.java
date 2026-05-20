@@ -22,6 +22,7 @@ public class Main extends ApplicationAdapter {
     private CasaView casaView; // Telas (View)
     private LojaView lojaView;
     private InventarioView inventarioView;
+    private HistoricoView historicoView;
 
     // --- VARIÁVEIS DE ESTADO DA INTERFACE ---
     private enum EstadoTimer { PADRAO, EDITANDO, RODANDO, PAUSADO }
@@ -57,6 +58,7 @@ public class Main extends ApplicationAdapter {
         casaView = new CasaView(jogadorLogado);
         lojaView = new LojaView();
         inventarioView = new InventarioView(); 
+        historicoView = new HistoricoView(); 
 
         // Configuração dos Botões do Timer
         Color rosa = Color.valueOf("#E58F8F");
@@ -85,6 +87,7 @@ public class Main extends ApplicationAdapter {
         float bordaCm = Gdx.graphics.getPpcX();
 
         inventarioView.calcularLayout(telaWidth, telaHeight);
+        historicoView.calcularLayout(telaWidth, telaHeight);
         casaView.calcularLayout(telaWidth, telaHeight); 
 
         controlWidth = telaWidth * 0.40f; 
@@ -146,6 +149,8 @@ public class Main extends ApplicationAdapter {
 
             // Atualiza clique na aba do Inventário
             inventarioView.atualizarLogica(mouseX, mouseY, clicou);
+
+            historicoView.atualizarLogica(mouseX, mouseY, clicou);
 
             // --- LÓGICA DA INTERFACE ESQUERDA (BOTÕES E LOJA) ---
             if (movelNaMao == null) {
@@ -313,6 +318,8 @@ public class Main extends ApplicationAdapter {
 
         // O inventário gerencia seu próprio ciclo interno de begin/end
         inventarioView.desenhar(shapeRenderer, batch, fonteBotao, jogadorLogado);
+
+        historicoView.desenhar(shapeRenderer, batch, fonteBotao, jogadorLogado);
     }
     
     private void desenharRetangulo(float x, float y, float width, float height, float radius) {
