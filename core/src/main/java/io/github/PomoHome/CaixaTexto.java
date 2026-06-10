@@ -8,21 +8,23 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
-// O InputAdapter permite que essa classe "escute" o teclado do computador
 public class CaixaTexto extends InputAdapter {
     public float x, y, width, height;
     public String texto;
-    public boolean ativo = false; // Se está selecionada (em foco)
+    public boolean ativo = false; 
     
-    // Variáveis para animar o cursor piscando
+    // Conectado à View da Casa
+    private CasaView interfaceView; 
+    
     private float tempoCursor = 0f;
     private boolean mostrarCursor = false;
     private int limiteCaracteres = 15;
 
-    public CaixaTexto(float width, float height, String textoInicial) {
+    public CaixaTexto(float width, float height, String textoInicial, CasaView interfaceView) {
         this.width = width;
         this.height = height;
         this.texto = textoInicial;
+        this.interfaceView = interfaceView; 
     }
 
     public void setPosicao(float x, float y) {
@@ -34,34 +36,27 @@ public class CaixaTexto extends InputAdapter {
         return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
     }
 
-    // --- MÁGICA DO TECLADO ---
-    // Este método é chamado automaticamente pelo LibGDX toda vez que você digita uma letra
     @Override
     public boolean keyTyped(char character) {
-        if (!ativo) return false; // Ignora o teclado se a caixa não estiver clicada
+        if (!ativo) return false;
 
-        // Se apertar BackSpace (Apagar)
         if (character == '\b' && texto.length() > 0) {
             texto = texto.substring(0, texto.length() - 1);
         }
-        // Se apertar Enter (Finaliza a edição)
         else if (character == '\n' || character == '\r') {
-            ativo = false;
+            // Interface manda a validação disparar na CasaView
+            interfaceView.validarNovoNomeDaInterface(this.texto); 
         }
-        // Aceita letras, números e espaços (Tabela ASCII entre 32 e 126)
         else if (character >= 32 && character <= 126 && texto.length() < limiteCaracteres) {
             texto += character;
         }
         return true;
     }
 
-    // --- DESENHO NA TELA ---
     public void desenharShape(ShapeRenderer sr) {
-        // Cor do fundo: Branco se estiver digitando, Bege escuro se estiver inativo
         sr.setColor(Color.valueOf(ativo ? "#FFFFFF" : "#B0B59E"));
         desenharRetanguloArredondado(sr, x, y, width, height, 8f);
 
-        // Se estiver ativo, desenha uma borda rosa em volta
         if (ativo) {
             sr.setColor(Color.valueOf("#E58F8F"));
             sr.set(ShapeRenderer.ShapeType.Line);
@@ -71,7 +66,6 @@ public class CaixaTexto extends InputAdapter {
     }
 
     public void desenharTexto(SpriteBatch batch, BitmapFont fonte) {
-        // Lógica do cursor piscando (alterna a cada 0.5 segundos)
         if (ativo) {
             tempoCursor += Gdx.graphics.getDeltaTime();
             if (tempoCursor >= 0.5f) {
@@ -83,7 +77,7 @@ public class CaixaTexto extends InputAdapter {
         }
 
         fonte.setColor(Color.BLACK);
-        String textoExibicao = texto + (mostrarCursor ? "|" : ""); // Adiciona o pipe se o cursor estiver visível
+        String textoExibicao = texto + (mostrarCursor ? "|" : ""); 
         
         GlyphLayout layout = new GlyphLayout(fonte, textoExibicao);
         float textoX = x + (width / 2f) - (layout.width / 2f);

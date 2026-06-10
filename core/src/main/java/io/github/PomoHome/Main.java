@@ -10,26 +10,27 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 public class Main extends ApplicationAdapter {
+    // Ferramentas de Desenho
     private ShapeRenderer shapeRenderer;
     private SpriteBatch batch;
     private BitmapFont fonteTimer, fonteBotao;
 
-    private enum Estado { PADRAO, EDITANDO, RODANDO, PAUSADO }
-    private Estado estadoAtual = Estado.PADRAO;
+    // --- ARQUITETURA MVC ---
+    private Jogo jogo; // O Cérebro (Model)
+    private Jogador jogadorLogado; // Model
     
-    private enum ModoView { TIMER, LOJA }
-    private ModoView viewAtual = ModoView.TIMER;
+    private CasaView casaView; // Telas (View)
+    private LojaView lojaView;
+    private InventarioView inventarioView;
 
-    private float tempoConfigurado = 53 * 60; 
-    private float tempoAtual = tempoConfigurado;
-
-    private GerenciadorMoedas banco;
-    private Loja loja; 
-    private Inventario inventario;
-    private Casa casa;
-
-    private Movel movelNaMao = null; 
-
+    // --- VARIÁVEIS DE ESTADO DA INTERFACE ---
+    private enum EstadoTimer { PADRAO, EDITANDO, RODANDO, PAUSADO }
+    private EstadoTimer estadoAtual = EstadoTimer.PADRAO;
+    private enum ModoPainel { TIMER, LOJA }
+    private ModoPainel viewAtual = ModoPainel.TIMER;
+    private Movel movelNaMao = null; // Dragging
+    
+    // UI Local
     private Botao btnEsq, btnDir, btnCentro, btnMais, btnMenos, btnAbrirLoja, btnSairLoja;
     private float timerCentroX, timerCentroY, raioExternoTimer, raioInternoTimer;
     private float controlX, controlY, controlWidth, controlHeight, raioControle;
@@ -48,22 +49,27 @@ public class Main extends ApplicationAdapter {
         fonteBotao.getData().setScale(1.2f);
         fonteBotao.setColor(Color.BLACK);
 
-        banco = new GerenciadorMoedas();
-        loja = new Loja();
-        inventario = new Inventario(); 
-        casa = new Casa(); 
+        // 1. INICIALIZA O MODELO (Dados e Regras)
+        jogadorLogado = new Jogador("User1", new Casa("Minha Casa"));
+        jogo = new Jogo(jogadorLogado); 
+        
+        // 2. INICIALIZA AS VISÕES (Telas)
+        casaView = new CasaView(jogadorLogado);
+        lojaView = new LojaView();
+        inventarioView = new InventarioView(); 
 
+        // Configuração dos Botões do Timer
         Color rosa = Color.valueOf("#E58F8F");
         btnEsq = new Botao("INICIAR", 140, 45, rosa);
         btnDir = new Botao("EDITAR", 140, 45, rosa);
         btnCentro = new Botao("ACEITAR", 140, 45, rosa);
         btnMais = new Botao("+", 40, 40, rosa);
         btnMenos = new Botao("-", 40, 40, rosa);
-        
         btnAbrirLoja = new Botao("LOJA", 140, 45, rosa);
         btnSairLoja = new Botao("SAIR", 140, 45, rosa);
-
-        Gdx.input.setInputProcessor(casa.inputNomeCasa);
+        
+        // Passa o teclado para a CasaView
+        Gdx.input.setInputProcessor(casaView.inputNomeCasa);
     }
 
     @Override
@@ -78,9 +84,8 @@ public class Main extends ApplicationAdapter {
         float telaHeight = Gdx.graphics.getHeight();
         float bordaCm = Gdx.graphics.getPpcX();
 
-        banco.calcularLayout(telaWidth, telaHeight);
-        inventario.calcularLayout(telaWidth, telaHeight);
-        casa.calcularLayout(telaWidth, telaHeight); 
+        inventarioView.calcularLayout(telaWidth, telaHeight);
+        casaView.calcularLayout(telaWidth, telaHeight); 
 
         controlWidth = telaWidth * 0.40f; 
         controlHeight = telaHeight * 0.9f;
@@ -88,7 +93,7 @@ public class Main extends ApplicationAdapter {
         controlY = (telaHeight - controlHeight) / 2f;
         raioControle = bordaCm * 2f;
 
-        loja.calcularLayout(controlX, controlY, controlWidth, controlHeight);
+        lojaView.calcularLayout(controlX, controlY, controlWidth, controlHeight);
 
         timerCentroX = controlX + (controlWidth / 2f);
         timerCentroY = controlY + controlHeight - 220f; 
@@ -100,92 +105,112 @@ public class Main extends ApplicationAdapter {
         btnEsq.setPosicao(timerCentroX - btnEsq.width - (espacamento / 2f), btnY);
         btnDir.setPosicao(timerCentroX + (espacamento / 2f), btnY);
         btnCentro.setPosicao(timerCentroX - (btnCentro.width / 2f), btnY);
-        
-        float btnSinalY = timerCentroY - (btnMais.height / 2f);
-        btnMenos.setPosicao(timerCentroX - raioExternoTimer - btnMenos.width - 20f, btnSinalY);
-        btnMais.setPosicao(timerCentroX + raioExternoTimer + 20f, btnSinalY);
-
+        btnMenos.setPosicao(timerCentroX - raioExternoTimer - btnMenos.width - 20f, timerCentroY - 20f);
+        btnMais.setPosicao(timerCentroX + raioExternoTimer + 20f, timerCentroY - 20f);
         btnAbrirLoja.setPosicao(timerCentroX - (btnAbrirLoja.width / 2f), btnY - 70f);
         btnSairLoja.setPosicao(timerCentroX - (btnSairLoja.width / 2f), controlY + 40f);
     }
 
     private void atualizarLogica() {
-        if (estadoAtual == Estado.RODANDO && tempoAtual > 0) {
-            tempoAtual -= Gdx.graphics.getDeltaTime();
-            if (tempoAtual <= 0) {
-                tempoAtual = 0;
-                estadoAtual = Estado.PADRAO; 
-                banco.adicionarMoedas((int) (tempoConfigurado / 60)); 
-            }
-        }
+        // 1. Atualiza as Regras Matemáticas do Jogo
+        jogo.atualizarLogica(Gdx.graphics.getDeltaTime());
+        casaView.update(Gdx.graphics.getDeltaTime());
 
         boolean clicou = Gdx.input.justTouched();
         if (clicou) {
             float mouseX = Gdx.input.getX();
             float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY(); 
 
-            // --- FLUXO DE DECORAÇÃO DA CASA ---
+            // --- LÓGICA DE ARRASTAR (DECORAÇÃO) ---
             if (movelNaMao == null) {
-                movelNaMao = inventario.pegarMovel(mouseX, mouseY);
-                
+                // Tenta pegar do inventário
+                movelNaMao = inventarioView.getMovelClicado(mouseX, mouseY, jogadorLogado);
                 if (movelNaMao != null) {
-                    casa.limparSelecao(); // Esconde o botão 'X' ao pegar um item
+                    jogadorLogado.inventario.remove(movelNaMao); // Remove da lista do modelo
+                    casaView.limparSelecao();
+                    Gdx.input.setInputProcessor(casaView.inputNomeCasa);
                 } else {
-                    // Mão continua vazia, passa o clique para a casa (Pode ser pra editar nome ou remover móvel)
-                    casa.atualizarLogica(mouseX, mouseY, clicou, inventario);
+                    // Clicou na casa de mão vazia (Remove ou edita nome)
+                    casaView.atualizarLogicaDeCliques(mouseX, mouseY, clicou);
                 }
             } else {
-                if (inventario.isClicadoNoPainel(mouseX, mouseY)) {
-                    inventario.adicionarMovel(movelNaMao);
+                // Tem algo na mão, tenta devolver pro inventário ou soltar na casa
+                if (inventarioView.isClicadoNoPainel(mouseX, mouseY)) {
+                    jogadorLogado.inventario.add(movelNaMao);
                     movelNaMao = null; 
                 } 
-                else if (casa.tentarColocarMovel(mouseX, mouseY, movelNaMao)) {
+                else if (casaView.tentarColocarMovel(mouseX, mouseY, movelNaMao)) {
                     movelNaMao = null; 
                 }
             }
 
-            // --- LÓGICA DE INTERFACE PADRÃO ---
-            inventario.atualizarLogica(mouseX, mouseY, clicou);
+            // Atualiza clique na aba do Inventário
+            inventarioView.atualizarLogica(mouseX, mouseY, clicou);
 
+            // --- LÓGICA DA INTERFACE ESQUERDA (BOTÕES E LOJA) ---
             if (movelNaMao == null) {
-                if (viewAtual == ModoView.TIMER) {
-                    if (estadoAtual == Estado.PADRAO && btnAbrirLoja.isClicado(mouseX, mouseY)) {
-                        viewAtual = ModoView.LOJA;
+                if (viewAtual == ModoPainel.TIMER) {
+                    if (estadoAtual == EstadoTimer.PADRAO && btnAbrirLoja.isClicado(mouseX, mouseY)) {
+                        viewAtual = ModoPainel.LOJA;
+                        Gdx.input.setInputProcessor(null); 
                     }
 
                     switch (estadoAtual) {
                         case PADRAO:
-                            if (btnEsq.isClicado(mouseX, mouseY)) estadoAtual = Estado.RODANDO; 
-                            else if (btnDir.isClicado(mouseX, mouseY)) estadoAtual = Estado.EDITANDO; 
+                            if (btnEsq.isClicado(mouseX, mouseY)) {
+                                estadoAtual = EstadoTimer.RODANDO;
+                                jogo.timer.rodando = true;
+                            } else if (btnDir.isClicado(mouseX, mouseY)) {
+                                estadoAtual = EstadoTimer.EDITANDO; 
+                            }
                             break;
                         case EDITANDO:
-                            if (btnCentro.isClicado(mouseX, mouseY)) estadoAtual = Estado.PADRAO; 
-                            else if (btnMenos.isClicado(mouseX, mouseY) && tempoConfigurado > 300) { tempoConfigurado -= 300; tempoAtual = tempoConfigurado; }
-                            else if (btnMais.isClicado(mouseX, mouseY) && tempoConfigurado < 5700) { tempoConfigurado += 300; tempoAtual = tempoConfigurado; }
+                            if (btnCentro.isClicado(mouseX, mouseY)) {
+                                estadoAtual = EstadoTimer.PADRAO; 
+                            } else if (btnMenos.isClicado(mouseX, mouseY) && jogo.timer.tempoCiclo > 300) { 
+                                jogo.timer.tempoCiclo -= 300; 
+                                jogo.timer.resetar(); 
+                            } else if (btnMais.isClicado(mouseX, mouseY) && jogo.timer.tempoCiclo < 5700) { 
+                                jogo.timer.tempoCiclo += 300; 
+                                jogo.timer.resetar(); 
+                            }
                             break;
                         case RODANDO:
                         case PAUSADO:
-                            if (btnEsq.isClicado(mouseX, mouseY)) estadoAtual = (estadoAtual == Estado.RODANDO) ? Estado.PAUSADO : Estado.RODANDO; 
-                            else if (btnDir.isClicado(mouseX, mouseY)) { estadoAtual = Estado.PADRAO; tempoAtual = tempoConfigurado; }
+                            if (btnEsq.isClicado(mouseX, mouseY)) {
+                                jogo.timer.iniciarOuPausar();
+                                estadoAtual = jogo.timer.rodando ? EstadoTimer.RODANDO : EstadoTimer.PAUSADO;
+                            } else if (btnDir.isClicado(mouseX, mouseY)) { 
+                                estadoAtual = EstadoTimer.PADRAO; 
+                                jogo.timer.resetar(); 
+                            }
                             break;
                     }
 
-                } else if (viewAtual == ModoView.LOJA) {
+                } else if (viewAtual == ModoPainel.LOJA) {
                     if (btnSairLoja.isClicado(mouseX, mouseY)) {
-                        viewAtual = ModoView.TIMER; 
+                        viewAtual = ModoPainel.TIMER; 
+                        Gdx.input.setInputProcessor(casaView.inputNomeCasa); 
                     } else {
-                        Movel m = loja.getMovelClicado(mouseX, mouseY);
-                        if (m != null && banco.gastarMoedas(m.preco)) {
-                            loja.removerMovel(m); 
-                            inventario.adicionarMovel(m); 
+                        // View captura o clique, Jogo aprova a compra!
+                        ItemLoja item = lojaView.getItemClicado(mouseX, mouseY, jogo.loja);
+                        if (item != null) {
+                            jogo.loja.comprarItem(jogadorLogado, item); 
                         }
                     }
                 }
             }
         }
+        
+        // Reset visual do Timer se a classe Timer avisar que acabou
+        if (!jogo.timer.rodando && jogo.timer.tempoAtual <= 0) {
+            estadoAtual = EstadoTimer.PADRAO;
+            jogo.timer.resetar();
+        }
 
-        if (estadoAtual == Estado.RODANDO || estadoAtual == Estado.PAUSADO) {
-            btnEsq.texto = (estadoAtual == Estado.RODANDO) ? "PAUSAR" : "RETOMAR";
+        // Textos Dinâmicos dos botões
+        if (estadoAtual == EstadoTimer.RODANDO || estadoAtual == EstadoTimer.PAUSADO) {
+            btnEsq.texto = (estadoAtual == EstadoTimer.RODANDO) ? "PAUSAR" : "RETOMAR";
             btnDir.texto = "CANCELAR";
         } else {
             btnEsq.texto = "INICIAR";
@@ -196,6 +221,9 @@ public class Main extends ApplicationAdapter {
     private void desenharTela() {
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
 
+        // =================================================================
+        // CAMADA 1: APENAS FORMAS (ShapeRenderer)
+        // =================================================//==============
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         shapeRenderer.setColor(Color.PINK);
@@ -204,12 +232,12 @@ public class Main extends ApplicationAdapter {
         float borda = Gdx.graphics.getPpcX();
         desenharRetangulo(controlX + borda, controlY + borda, controlWidth - (borda * 2), controlHeight - (borda * 2), Math.max(0, raioControle - borda));
 
-        casa.desenharShape(shapeRenderer);
+        casaView.desenharShape(shapeRenderer); 
 
-        if (viewAtual == ModoView.TIMER) {
+        if (viewAtual == ModoPainel.TIMER) {
             shapeRenderer.setColor(Color.valueOf("#D3D3D3"));
             shapeRenderer.circle(timerCentroX, timerCentroY, raioExternoTimer);
-            float proporcao = tempoAtual / tempoConfigurado;
+            float proporcao = jogo.timer.tempoAtual / jogo.timer.tempoCiclo;
             if (proporcao > 0) {
                 shapeRenderer.setColor(Color.valueOf("#696969"));
                 shapeRenderer.arc(timerCentroX, timerCentroY, raioExternoTimer, 90, -(proporcao * 360f), 100);
@@ -217,11 +245,11 @@ public class Main extends ApplicationAdapter {
             shapeRenderer.setColor(Color.valueOf("#EDE8D8"));
             shapeRenderer.circle(timerCentroX, timerCentroY, raioInternoTimer);
 
-            if (estadoAtual == Estado.PADRAO) {
+            if (estadoAtual == EstadoTimer.PADRAO) {
                 btnEsq.desenharShape(shapeRenderer);
                 btnDir.desenharShape(shapeRenderer);
                 btnAbrirLoja.desenharShape(shapeRenderer);
-            } else if (estadoAtual == Estado.EDITANDO) {
+            } else if (estadoAtual == EstadoTimer.EDITANDO) {
                 btnCentro.desenharShape(shapeRenderer);
                 btnMenos.desenharShape(shapeRenderer);
                 btnMais.desenharShape(shapeRenderer);
@@ -229,37 +257,44 @@ public class Main extends ApplicationAdapter {
                 btnEsq.desenharShape(shapeRenderer);
                 btnDir.desenharShape(shapeRenderer);
             }
-        } else if (viewAtual == ModoView.LOJA) {
-            loja.desenharShape(shapeRenderer);
+        } else if (viewAtual == ModoPainel.LOJA) {
+            // CORREÇÃO AQUI: Chama apenas a parte de formas da loja!
+            lojaView.desenharShape(shapeRenderer, jogo.loja); 
             btnSairLoja.desenharShape(shapeRenderer);
         }
 
-        banco.desenharShape(shapeRenderer); 
-
+        // Saldo do Jogador
+        shapeRenderer.setColor(Color.valueOf("#FFD700")); 
+        shapeRenderer.circle(50, Gdx.graphics.getHeight() - 50, 30);
+        
         if (movelNaMao != null) {
             float mouseX = Gdx.input.getX();
             float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
-            shapeRenderer.setColor(movelNaMao.corRepresentativa);
+            shapeRenderer.setColor(Color.valueOf("#8B9BB4"));
             shapeRenderer.rect(mouseX - 30f, mouseY - 30f, 60f, 60f); 
         }
 
-        shapeRenderer.end();
+        shapeRenderer.end(); // FECHA o renderizador de formas com segurança!
 
+        // =================================================================
+        // CAMADA 2: APENAS TEXTOS E IMAGENS (SpriteBatch)
+        // =================================================================
         batch.begin();
-        banco.desenharTexto(batch, fonteBotao); 
+        fonteBotao.setColor(Color.BLACK);
+        fonteBotao.draw(batch, "$" + jogadorLogado.saldo, 90, Gdx.graphics.getHeight() - 40);
 
-        if (viewAtual == ModoView.TIMER) {
-            int minutos = (int) (tempoAtual / 60);
-            int segundos = (int) (tempoAtual % 60);
-            String textoTimer = String.format("%02d:%02d", minutos, segundos);
+        if (viewAtual == ModoPainel.TIMER) {
+            int minutes = (int) (jogo.timer.tempoAtual / 60);
+            int seconds = (int) (jogo.timer.tempoAtual % 60);
+            String textoTimer = String.format("%02d:%02d", minutes, seconds);
             GlyphLayout layoutTimer = new GlyphLayout(fonteTimer, textoTimer);
             fonteTimer.draw(batch, layoutTimer, timerCentroX - (layoutTimer.width / 2f), timerCentroY + (layoutTimer.height / 2f));
 
-            if (estadoAtual == Estado.PADRAO) {
+            if (estadoAtual == EstadoTimer.PADRAO) {
                 btnEsq.desenharTexto(batch, fonteBotao);
                 btnDir.desenharTexto(batch, fonteBotao);
                 btnAbrirLoja.desenharTexto(batch, fonteBotao);
-            } else if (estadoAtual == Estado.EDITANDO) {
+            } else if (estadoAtual == EstadoTimer.EDITANDO) {
                 btnCentro.desenharTexto(batch, fonteBotao);
                 btnMenos.desenharTexto(batch, fonteBotao);
                 btnMais.desenharTexto(batch, fonteBotao);
@@ -267,17 +302,19 @@ public class Main extends ApplicationAdapter {
                 btnEsq.desenharTexto(batch, fonteBotao);
                 btnDir.desenharTexto(batch, fonteBotao);
             }
-        } else if (viewAtual == ModoView.LOJA) {
-            loja.desenharTexto(batch, fonteBotao, banco.getSaldo());
+        } else if (viewAtual == ModoPainel.LOJA) {
+            // CORREÇÃO AQUI: Chama a parte de textos da loja dentro do batch!
+            lojaView.desenharTexto(batch, fonteBotao, jogo.loja, jogadorLogado);
             btnSairLoja.desenharTexto(batch, fonteBotao);
         }
 
-        casa.desenharTexto(batch, fonteBotao);
+        casaView.desenharTexto(batch, fonteBotao);
         batch.end();
 
-        inventario.desenhar(shapeRenderer, batch, fonteBotao);
+        // O inventário gerencia seu próprio ciclo interno de begin/end
+        inventarioView.desenhar(shapeRenderer, batch, fonteBotao, jogadorLogado);
     }
-
+    
     private void desenharRetangulo(float x, float y, float width, float height, float radius) {
         shapeRenderer.rect(x + radius, y, width - 2 * radius, height);
         shapeRenderer.rect(x, y + radius, width, height - 2 * radius);
