@@ -1,18 +1,15 @@
 package io.github.PomoHome.model;
 
+import com.badlogic.gdx.Gdx;
 import io.github.PomoHome.network.ApiClient;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Client-side view of the store. Holds the cached catalog and knows how to
- * refresh it from the server.
- *
- * Why a class and not just a List? Because TelaLoja and ApiClient can both
- * hold a reference to the SAME Loja instance — when ApiClient updates it,
- * TelaLoja just re-renders from the same list. (Simpler than passing the
- * list around.)
+ * Client-side view of the store: the cached catalog plus a refresh from the
+ * server. Screens hold the same {@code Loja} instance and re-render from it
+ * after each refresh.
  */
 public class Loja {
 
@@ -20,22 +17,38 @@ public class Loja {
 
     public Loja() { }
 
-    /**
-     * Asks the server for the current catalog and replaces 'itensDisponiveis'
-     * when the response arrives.
-     *
-     * TODO (TEAM):
-     *   1. api.fetchCatalogoLoja(new ApiClient.Callback<List<Movel>>() {
-     *        public void onSuccess(List<Movel> result) {
-     *            itensDisponiveis = result;
-     *            // If your UI reads this from the LibGDX render thread,
-     *            // wrap the assignment in Gdx.app.postRunnable(() -> ...).
-     *        }
-     *        public void onError(Throwable t) { ... show a toast ... }
-     *      });
-     */
     public void atualizarDoServidor(ApiClient api) {
-        // TODO: implement following the steps above.
+        atualizarDoServidor(api, null);
+    }
+
+    /**
+     * Same as {@link #atualizarDoServidor(ApiClient)}, but runs {@code aoAtualizar}
+     * (on the render thread) once the catalog has been replaced — handy for
+     * rebuilding a scene2d store table when the data arrives.
+     */
+    public void atualizarDoServidor(ApiClient api, Runnable aoAtualizar) {
+        api.fetchCatalogoLoja(new ApiClient.Callback<List<Movel>>() {
+            @Override
+            public void onSuccess(List<Movel> result) {
+                Gdx.app.postRunnable(() -> {
+                    if (result != null) {
+                        for (Movel m : result) {
+                            m.resolverTamanho(); // derive tile footprint from categoria
+                        }
+                        itensDisponiveis = result;
+                    }
+                    if (aoAtualizar != null) {
+                        aoAtualizar.run();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // Leave the previous catalog in place; the screen can surface
+                // the error. status == 0 means the backend is unreachable.
+            }
+        });
     }
 
     public List<Movel> getItensDisponiveis() { return itensDisponiveis; }

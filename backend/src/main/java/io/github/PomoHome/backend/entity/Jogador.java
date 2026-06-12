@@ -1,6 +1,7 @@
 package io.github.PomoHome.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,41 +14,27 @@ import java.util.List;
  *   Jogador *-----* Movel      (inventory: many players can own many "copies" of a Movel)
  *   Jogador *--{ amigosIds }   (friends: stored as a flat list of IDs to avoid circular JSON)
  *
- * TODO (TEAM) — checklist when filling this class in:
- *   1. JPA needs a public no-arg constructor (already provided below).
- *      Don't delete it, even if you add a parameterized one.
- *   2. equals()/hashCode(): if you override them, NEVER use 'id' alone,
- *      because the id is null until the entity is persisted. Either use
- *      'username' (it's unique) or use the JPA-friendly pattern of
- *      `getClass()` equality + null-safe id compare.
- *   3. Don't expose `senha` in JSON responses (use a DTO when you serialize
- *      a Jogador to the client). For now the field is included; once you
- *      add DTOs, annotate it with @JsonIgnore here OR strip it in the DTO.
+ * Note: {@code senha} is a BCrypt hash and is never serialized to clients —
+ * responses go through JogadorDTO, which omits it entirely.
  */
 @Entity
 @Table(name = "JOGADOR")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Jogador {
 
     // ---------------------------------------------------------------
     // Identity
     // ---------------------------------------------------------------
 
-    // TODO: @GeneratedValue(strategy = IDENTITY) tells Hibernate to let the
-    //       database generate the primary key (H2 uses AUTO_INCREMENT under the hood).
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // TODO: nullable = false enforces NOT NULL at the schema level;
-    //       unique = true creates a unique index so two players can't share a name.
+    /** Unique login name; backed by a unique index. */
     @Column(nullable = false, unique = true)
     private String username;
 
-    // TODO: store a HASH here, not the plain password. Plan: when you implement
-    //       JogadorService.cadastrar(), hash the incoming senha with BCrypt
-    //       (add spring-boot-starter-security or org.mindrot:jbcrypt as a dep).
-    //       For the first prototype it's OK to keep it as plain text — just
-    //       don't ship it that way.
+    /** BCrypt hash of the password — hashed in JogadorService.cadastrar. */
     @Column(nullable = false)
     private String senha;
 
@@ -69,10 +56,6 @@ public class Jogador {
      * Each player has exactly one house. Cascade ALL means: persist/delete the
      * Casa together with this Jogador. The FK column "casa_id" lives on the
      * JOGADOR table.
-     *
-     * TODO: Jogador is the OWNING side here (it has the @JoinColumn).
-     *       The inverse side (Casa.dono) uses mappedBy = "casa".
-     *       Without this, JPA would create TWO foreign keys instead of one.
      */
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "casa_id")
@@ -81,12 +64,8 @@ public class Jogador {
     /**
      * Inventory of furniture this player has bought.
      * Many-to-many because the same Movel model (e.g. "Red Sofa") can belong
-     * to many players, and a player owns many móveis.
-     *
-     * TODO: This creates a join table JOGADOR_INVENTARIO (jogador_id, movel_id).
-     *       If you later need duplicates of the same Movel (e.g. two red sofas
-     *       in inventory), switch to a @OneToMany with an "ItemInventario"
-     *       intermediary entity.
+     * to many players, and a player owns many móveis. Backed by the join
+     * table JOGADOR_INVENTARIO (jogador_id, movel_id).
      */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -103,12 +82,8 @@ public class Jogador {
      * creates ugly JSON cycles (A is friend of B, which has friend A, which ...).
      * Storing IDs avoids the cycle and is perfectly fine for our use case
      * (we just need to know "who are this user's friends?" and then GET them
-     * one by one via /api/jogadores/{id}).
-     *
-     * TODO: @ElementCollection creates a side table JOGADOR_AMIGOS_IDS
-     *       with columns (jogador_id, amigos_ids). Fetch is LAZY by default —
-     *       you must either be inside a @Transactional method or call
-     *       getAmigosIds().size() while the session is open.
+     * one by one via /api/jogadores/{id}). Backed by the side table
+     * JOGADOR_AMIGOS_IDS; LAZY, so access it inside a @Transactional method.
      */
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "JOGADOR_AMIGOS_IDS", joinColumns = @JoinColumn(name = "jogador_id"))
@@ -123,9 +98,7 @@ public class Jogador {
     public Jogador() { }
 
     public Jogador(String username, String senha) {
-        // TODO: defaults — new players start with saldo=0 and tempoEstudado=0.
-        //       Consider initializing a default Casa here too, so a new
-        //       Jogador always has a place to put furniture.
+        // New players start with no coins and no study time.
         this.username = username;
         this.senha = senha;
         this.saldo = 0;

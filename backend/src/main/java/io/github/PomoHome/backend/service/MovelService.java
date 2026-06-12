@@ -1,11 +1,16 @@
 package io.github.PomoHome.backend.service;
 
+import io.github.PomoHome.backend.entity.Jogador;
 import io.github.PomoHome.backend.entity.Movel;
+import io.github.PomoHome.backend.entity.Slot;
+import io.github.PomoHome.backend.repository.JogadorRepository;
 import io.github.PomoHome.backend.repository.MovelRepository;
+import io.github.PomoHome.backend.repository.SlotRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
@@ -18,57 +23,79 @@ import java.util.Optional;
 public class MovelService {
 
     private final MovelRepository movelRepository;
+    private final SlotRepository slotRepository;
+    private final JogadorRepository jogadorRepository;
 
-    public MovelService(MovelRepository movelRepository) {
+    public MovelService(MovelRepository movelRepository,
+                        SlotRepository slotRepository,
+                        JogadorRepository jogadorRepository) {
         this.movelRepository = movelRepository;
+        this.slotRepository = slotRepository;
+        this.jogadorRepository = jogadorRepository;
     }
 
-    /**
-     * Full store catalog. Backs GET /api/loja.
-     *
-     * TODO: return movelRepository.findAll();
-     */
+    /** Full store catalog. Backs GET /api/loja. */
     @Transactional(readOnly = true)
     public List<Movel> listarTodos() {
-        // TODO: implement.
-        return List.of();
+        return movelRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     public Optional<Movel> buscarPorId(Long id) {
-        // TODO: return movelRepository.findById(id);
-        return Optional.empty();
+        return movelRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
     public List<Movel> listarPorCategoria(String categoria) {
-        // TODO: return movelRepository.findByCategoria(categoria);
-        return List.of();
+        return movelRepository.findByCategoria(categoria);
     }
 
     /**
-     * Admin-only — add a new product to the store.
-     *
-     * TODO (steps):
-     *   1. Validate (preco > 0, nome/categoria non-blank).
-     *   2. movelRepository.save(movel) and return the persisted entity.
-     *
-     * For the academic project you likely won't have real admin auth —
-     * either gate it later with Spring Security or just leave the endpoint
-     * "open" for now.
+     * Admin-only — add a new product to the store. Validates that nome and
+     * categoria are non-blank and preco is positive. The endpoint is
+     * currently unauthenticated (academic scope).
      */
     @Transactional
     public Movel criar(Movel movel) {
-        // TODO: implement.
-        return null;
+        if (movel.getNome() == null || movel.getNome().isBlank()) {
+            throw new IllegalArgumentException("Nome não pode ser vazio");
+        }
+        if (movel.getCategoria() == null || movel.getCategoria().isBlank()) {
+            throw new IllegalArgumentException("Categoria não pode ser vazia");
+        }
+        if (movel.getPreco() <= 0) {
+            throw new IllegalArgumentException("Preço deve ser maior que zero");
+        }
+        return movelRepository.save(movel);
     }
 
+    /**
+     * Remove a móvel from the catalog.
+     *
+     * A Movel can be referenced from two places:
+     *   - SLOT.movel_atual_id  (a house has it placed)
+     *   - JOGADOR_INVENTARIO   (a player owns it)
+     * Deleting the row directly would throw a FK constraint violation.
+     * So we detach those references first, then delete.
+     */
     @Transactional
     public void removerPorId(Long id) {
-        // TODO: movelRepository.deleteById(id);
-        //       Watch out: if any Slot still references this móvel as
-        //       movelAtual, deleting it will throw a constraint violation.
-        //       Either null those references first or change the relation
-        //       to use ON DELETE SET NULL.
+        Movel movel = movelRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Móvel não encontrado"));
+
+        // 1. Clear it out of any slot that has it placed.
+        for (Slot slot : slotRepository.findByMovelAtual_Id(id)) {
+            slot.setMovelAtual(null);
+            slotRepository.save(slot);
+        }
+
+        // 2. Remove it from every player's inventory.
+        for (Jogador jogador : jogadorRepository.findByInventario_Id(id)) {
+            jogador.getInventario().removeIf(m -> m.getId().equals(id));
+            jogadorRepository.save(jogador);
+        }
+
+        // 3. Now safe to delete.
+        movelRepository.delete(movel);
     }
 }

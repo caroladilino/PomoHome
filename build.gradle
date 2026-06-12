@@ -27,7 +27,10 @@ allprojects {
 
 configure(subprojects) {
   apply plugin: 'java-library'
-  java.sourceCompatibility = 17
+  // backend uses Java 17 (Spring Boot 3.x requirement) and sets its own toolchain
+  if (project.name != 'backend') {
+    java.sourceCompatibility = 8
+  }
 
   // From https://lyze.dev/2021/04/29/libGDX-Internal-Assets-List/
   // The article can be helpful when using assets.txt in your project.

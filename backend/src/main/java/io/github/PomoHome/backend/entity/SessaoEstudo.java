@@ -1,6 +1,7 @@
 package io.github.PomoHome.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -11,15 +12,12 @@ import java.time.LocalDateTime;
  * Aggregating these rows yields the per-player history (Historico) and
  * also feeds Jogador.tempoEstudado / Jogador.saldo (1 minute = 1 coin).
  *
- * TODO (TEAM):
- *   - Always create rows through SessaoEstudoService.registrarSessao() so
- *     the side effects (credit coins, bump tempoEstudado) stay consistent.
- *     Do NOT update Jogador directly from the controller.
- *   - Consider adding a 'duracaoSegundos' if you want fractional credits
- *     (e.g. a session aborted at 24:30 still counts as 24 minutes).
+ * Always create rows through SessaoEstudoService.registrarSessao() so the
+ * side effects (credit coins, bump tempoEstudado) stay consistent.
  */
 @Entity
 @Table(name = "SESSAO_ESTUDO")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class SessaoEstudo {
 
     @Id
@@ -37,7 +35,7 @@ public class SessaoEstudo {
     @JsonIgnore
     private Jogador jogador;
 
-    // TODO: defaulted at construction time in the service. Stored as TIMESTAMP.
+    /** Set at construction time; stored as TIMESTAMP. */
     @Column(nullable = false)
     private LocalDateTime dataHora;
 

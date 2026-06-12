@@ -1,6 +1,6 @@
 package io.github.PomoHome.backend.controller;
 
-import io.github.PomoHome.backend.entity.SessaoEstudo;
+import io.github.PomoHome.backend.dto.SessaoEstudoDTO;
 import io.github.PomoHome.backend.service.SessaoEstudoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,11 +10,6 @@ import java.util.Map;
 
 /**
  * REST endpoints under /api/sessoes.
- *
- * Lifecycle reminder:
- *   1. LibGDX client runs the local Pomodoro timer.
- *   2. When the timer hits "complete", the client POSTs a session here.
- *   3. We persist the session AND give the player coins / bump tempoEstudado.
  */
 @RestController
 @RequestMapping("/api/sessoes")
@@ -29,27 +24,24 @@ public class SessaoEstudoController {
     /**
      * POST /api/sessoes
      * Body: { "jogadorId": 1, "minutosConcluidos": 25 }
-     *
-     * TODO:
-     *   1. Parse jogadorId + minutosConcluidos from body (or use a DTO).
-     *   2. SessaoEstudo nova = sessaoService.registrarSessao(jogadorId, minutos);
-     *   3. return ResponseEntity.status(HttpStatus.CREATED).body(nova);
      */
     @PostMapping
-    public ResponseEntity<SessaoEstudo> registrar(@RequestBody Map<String, Object> body) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<SessaoEstudoDTO> registrar(@RequestBody Map<String, Object> body) {
+        Long jogadorId = Long.valueOf(body.get("jogadorId").toString());
+        int minutosConcluidos = Integer.parseInt(body.get("minutosConcluidos").toString());
+        var nova = sessaoService.registrarSessao(jogadorId, minutosConcluidos);
+        return ResponseEntity.status(201).body(SessaoEstudoDTO.from(nova));
     }
 
     /**
      * GET /api/sessoes/jogador/{jogadorId}
      * Returns the player's history, most recent first.
-     *
-     * TODO: return ResponseEntity.ok(sessaoService.historicoDoJogador(jogadorId));
      */
     @GetMapping("/jogador/{jogadorId}")
-    public ResponseEntity<List<SessaoEstudo>> historico(@PathVariable Long jogadorId) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<List<SessaoEstudoDTO>> historico(@PathVariable Long jogadorId) {
+        List<SessaoEstudoDTO> historico = sessaoService.historicoDoJogador(jogadorId).stream()
+                .map(SessaoEstudoDTO::from)
+                .toList();
+        return ResponseEntity.ok(historico);
     }
 }

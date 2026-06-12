@@ -1,24 +1,20 @@
 package io.github.PomoHome.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The player's house. Contains a fixed set of Slots, each of which can hold
  * (at most) one Movel placed by the player.
- *
- * TODO (TEAM):
- *   - When a Jogador is created (JogadorService.cadastrar), also create a
- *     fresh Casa with a default set of empty Slots (e.g. one "sala-sofa",
- *     one "sala-mesa", one "quarto-cama"). The catalog of slots is part of
- *     the game design — settle it with the team.
- *   - The bidirectional relation Jogador<->Casa is delicate: see comments
- *     on `dono` below.
  */
 @Entity
 @Table(name = "CASA")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Casa {
 
     @Id
@@ -30,11 +26,6 @@ public class Casa {
      *
      * "mappedBy = casa" means: "the OTHER side (Jogador) owns the foreign
      * key column. Don't create another FK on the CASA table."
-     *
-     * @JsonIgnore is CRITICAL: without it, serializing a Jogador will go
-     *   Jogador -> casa -> dono -> Jogador -> ... infinite loop, and Jackson
-     *   throws StackOverflowError. With @JsonIgnore, the client never sees
-     *   `casa.dono` (which it already knows about — it's the logged-in user).
      */
     @OneToOne(mappedBy = "casa", fetch = FetchType.LAZY)
     @JsonIgnore
@@ -46,16 +37,23 @@ public class Casa {
     private int numLikes;
 
     /**
+     * Ids of the players who have liked this house. A like is one-per-visitor
+     * and toggleable (like / unlike), so {@code numLikes} is kept equal to this
+     * set's size. Stored as a simple id collection (like Jogador.amigosIds) to
+     * avoid a Casa↔Jogador cycle.
+     */
+    @ElementCollection
+    @CollectionTable(name = "CASA_CURTIDO_POR", joinColumns = @JoinColumn(name = "casa_id"))
+    @Column(name = "jogador_id")
+    private Set<Long> curtidoPor = new HashSet<>();
+
+    /**
      * Slots belong to this Casa and only this Casa.
      *  - cascade = ALL          -> persist/update/delete Slots with the Casa
      *  - orphanRemoval = true   -> if you remove a Slot from this list,
      *                              JPA also deletes it from the DB
      *  - mappedBy = "casa"      -> the FK lives on SLOT.casa_id; we add a
      *                              `Casa casa` field in Slot for this.
-     *
-     * TODO: if you don't want the bidirectional reference on Slot, drop
-     *       `mappedBy` and add @JoinColumn(name = "casa_id") here instead.
-     *       Pick one style and be consistent.
      */
     @OneToMany(mappedBy = "casa", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Slot> slots = new ArrayList<>();
@@ -71,13 +69,11 @@ public class Casa {
     // Helpers (suggested) — keep both sides of the relationship in sync
     // ---------------------------------------------------------------
 
-    /** TODO: call this instead of slots.add(...) so the back-reference is set. */
     public void addSlot(Slot s) {
         slots.add(s);
         s.setCasa(this);
     }
 
-    /** TODO: call this instead of slots.remove(...) so orphanRemoval triggers cleanly. */
     public void removeSlot(Slot s) {
         slots.remove(s);
         s.setCasa(null);
@@ -97,4 +93,7 @@ public class Casa {
 
     public List<Slot> getSlots() { return slots; }
     public void setSlots(List<Slot> slots) { this.slots = slots; }
+
+    public Set<Long> getCurtidoPor() { return curtidoPor; }
+    public void setCurtidoPor(Set<Long> curtidoPor) { this.curtidoPor = curtidoPor; }
 }

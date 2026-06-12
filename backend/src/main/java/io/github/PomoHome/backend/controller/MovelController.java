@@ -1,6 +1,7 @@
 package io.github.PomoHome.backend.controller;
 
-import io.github.PomoHome.backend.entity.Jogador;
+import io.github.PomoHome.backend.dto.JogadorDTO;
+import io.github.PomoHome.backend.dto.MovelDTO;
 import io.github.PomoHome.backend.entity.Movel;
 import io.github.PomoHome.backend.service.JogadorService;
 import io.github.PomoHome.backend.service.MovelService;
@@ -12,9 +13,6 @@ import java.util.Map;
 
 /**
  * REST endpoints under /api/loja.
- *
- * The store IS the Movel table — we just expose it as "/loja" because that's
- * how the team talks about it in the design.
  */
 @RestController
 @RequestMapping("/api/loja")
@@ -29,36 +27,42 @@ public class MovelController {
     }
 
     /**
-     * GET /api/loja
-     * Full catalog. The frontend calls this once to populate TelaLoja.
+     * GET /api/loja            -> full catalog
+     * GET /api/loja?categoria=sofa  -> only that category
      *
-     * TODO: return ResponseEntity.ok(movelService.listarTodos());
+     * The optional 'categoria' query param lets TelaLoja filter the store
+     * (e.g. show only sofás) without a separate endpoint.
      */
     @GetMapping
-    public ResponseEntity<List<Movel>> listarTodos() {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<List<MovelDTO>> listarTodos(
+            @RequestParam(required = false) String categoria) {
+        var moveis = (categoria == null || categoria.isBlank())
+                ? movelService.listarTodos()
+                : movelService.listarPorCategoria(categoria);
+        List<MovelDTO> catalogo = moveis.stream()
+                .map(MovelDTO::from)
+                .toList();
+        return ResponseEntity.ok(catalogo);
     }
 
     /**
      * GET /api/loja/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Movel> buscarPorId(@PathVariable Long id) {
-        // TODO: movelService.buscarPorId(id) -> ResponseEntity.ok | notFound.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<MovelDTO> buscarPorId(@PathVariable Long id) {
+        return movelService.buscarPorId(id)
+                .map(MovelDTO::from)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
      * POST /api/loja  (admin)
      * Body: a full Movel JSON.
-     *
-     * TODO: return ResponseEntity.status(HttpStatus.CREATED).body(movelService.criar(body));
      */
     @PostMapping
-    public ResponseEntity<Movel> criar(@RequestBody Movel body) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<MovelDTO> criar(@RequestBody Movel body) {
+        return ResponseEntity.status(201).body(MovelDTO.from(movelService.criar(body)));
     }
 
     /**
@@ -66,8 +70,8 @@ public class MovelController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> remover(@PathVariable Long id) {
-        // TODO: movelService.removerPorId(id); return ResponseEntity.noContent().build();
-        return ResponseEntity.status(501).build();
+        movelService.removerPorId(id);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -76,19 +80,11 @@ public class MovelController {
      *
      * NB: we delegate to JogadorService here because the purchase mutates
      * Jogador (saldo + inventário), not Movel.
-     *
-     * TODO:
-     *   1. Long jogadorId = Long.valueOf(body.get("jogadorId").toString());
-     *   2. Long movelId   = Long.valueOf(body.get("movelId").toString());
-     *   3. Jogador atualizado = jogadorService.comprarMovel(jogadorId, movelId);
-     *   4. return ResponseEntity.ok(atualizado);
-     *
-     * Better: create a "ComprarRequest" DTO with two Long fields so Spring
-     * binds the JSON for you with no casting.
      */
     @PostMapping("/comprar")
-    public ResponseEntity<Jogador> comprar(@RequestBody Map<String, Object> body) {
-        // TODO: implement.
-        return ResponseEntity.status(501).build();
+    public ResponseEntity<JogadorDTO> comprar(@RequestBody Map<String, Object> body) {
+        Long jogadorId = Long.valueOf(body.get("jogadorId").toString());
+        Long movelId = Long.valueOf(body.get("movelId").toString());
+        return ResponseEntity.ok(JogadorDTO.from(jogadorService.comprarMovel(jogadorId, movelId)));
     }
 }

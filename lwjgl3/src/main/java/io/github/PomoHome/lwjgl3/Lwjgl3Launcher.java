@@ -29,7 +29,12 @@ public class Lwjgl3Launcher {
         //// useful for testing performance, but can also be very stressful to some hardware.
         //// You may also need to configure GPU drivers to fully disable Vsync; this can cause screen tearing.
 
-        configuration.setWindowedMode(1600, 800);
+        //// The game screen (TelaJogo) lays out the Pomodoro panel, the 8x8 iso
+        //// house and the inventory with fixed pixel offsets, so it needs room.
+        //// 1280x720 matches the UI mockups; the min-size limit keeps the panel
+        //// buttons from being clipped if the window is shrunk.
+        configuration.setWindowedMode(1280, 720);
+        configuration.setWindowSizeLimits(1024, 640, -1, -1);
         //// You can change these files; they are in lwjgl3/src/main/resources/ .
         //// They can also be loaded from the root of assets/ .
         configuration.setWindowIcon("libgdx128.png", "libgdx64.png", "libgdx32.png", "libgdx16.png");
