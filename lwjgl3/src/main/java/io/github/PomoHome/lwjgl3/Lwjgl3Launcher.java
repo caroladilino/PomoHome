@@ -2,6 +2,7 @@ package io.github.PomoHome.lwjgl3;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+
 import io.github.PomoHome.Main;
 
 /** Launches the desktop (LWJGL3) application. */
