@@ -167,3 +167,5 @@ BACKEND_ARCHITECTURE.md
 ## PomoHome backend
 /backend/build/
 /backend/data/
+## H2 database files (regenerated on boot)
+/data/
