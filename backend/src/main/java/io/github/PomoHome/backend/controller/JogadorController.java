@@ -67,6 +67,24 @@ public class JogadorController {
     }
 
     /**
+     * POST /api/jogadores/{id}/creditar?valor=N  (admin/debug)
+     * Adds N coins to the player's balance without changing study time.
+     */
+    @PostMapping("/{id}/creditar")
+    public ResponseEntity<JogadorDTO> creditar(@PathVariable Long id, @RequestParam int valor) {
+        return ResponseEntity.ok(JogadorDTO.from(jogadorService.creditarSaldo(id, valor)));
+    }
+
+    /**
+     * DELETE /api/jogadores/{id}/inventario  (admin/debug)
+     * Empties the player's furniture inventory.
+     */
+    @DeleteMapping("/{id}/inventario")
+    public ResponseEntity<JogadorDTO> limparInventario(@PathVariable Long id) {
+        return ResponseEntity.ok(JogadorDTO.from(jogadorService.limparInventario(id)));
+    }
+
+    /**
      * GET /api/jogadores/ranking
      * Returns all players sorted by tempoEstudado DESC.
      */

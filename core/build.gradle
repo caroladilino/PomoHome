@@ -4,6 +4,14 @@ eclipse.project.name = appName + '-core'
 dependencies {
   api "com.badlogicgames.gdx:gdx:$gdxVersion"
 
+  // FreeType: renders crisp BitmapFonts from a .ttf at the real pixel size
+  // (instead of scaling the built-in font). Used by io.github.PomoHome.ui.UiSkin.
+  api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+
+  // ShapeDrawer: draws shapes through the SpriteBatch (no ShapeRenderer/Batch
+  // conflict). Reserved for the scene2d migration (custom grid/ring actors).
+  implementation 'space.earlygrey:shapedrawer:2.5.0'
+
   // JSON (de)serialization for HTTP communication with the Spring Boot backend.
   // Used by io.github.PomoHome.network.ApiClient.
   api 'com.google.code.gson:gson:2.11.0'

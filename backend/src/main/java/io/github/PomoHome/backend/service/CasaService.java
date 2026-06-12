@@ -11,6 +11,7 @@ import io.github.PomoHome.backend.repository.SlotRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -89,14 +90,73 @@ public class CasaService {
     }
 
     /**
-     * Increment the Casa's like counter (when a friend visits and likes
-     * the house). No per-visitor dedup — a like can be given repeatedly.
+     * Toggle a visitor's like on the house: if {@code visitanteId} hasn't liked
+     * it yet the like is added, otherwise it is removed. {@code numLikes} is
+     * kept equal to the number of distinct likers, so a visitor can never stack
+     * likes — at most one each, which they can also take back.
      */
     @Transactional
-    public Casa darLike(Long casaId) {
+    public Casa darLike(Long casaId, Long visitanteId) {
         Casa casa = casaRepository.findById(casaId)
                 .orElseThrow(() -> new NoSuchElementException("Casa não encontrada"));
-        casa.setNumLikes(casa.getNumLikes() + 1);
+        if (visitanteId == null) {
+            throw new IllegalArgumentException("visitanteId é obrigatório");
+        }
+        if (!casa.getCurtidoPor().add(visitanteId)) {
+            casa.getCurtidoPor().remove(visitanteId); // already liked -> unlike
+        }
+        casa.setNumLikes(casa.getCurtidoPor().size());
         return casaRepository.save(casa);
     }
+
+    /**
+     * Replace the whole house layout in one shot. Backs the free 8×8 grid:
+     * the frontend, when it leaves "edit mode", sends every placed móvel as a
+     * {@code (tileName, movelId)} pair. We wipe the Casa's current slots and
+     * recreate one {@link Slot} per placement — {@code nomePosicao} = grid
+     * tile name (e.g. "L3C5"), {@code movelAtual} = the placed móvel.
+     *
+     * <p>This is a free grid, so the per-category "sofa only on sofa slot"
+     * rule does NOT apply here (that's {@link #colocarMovelNoSlot}). We still
+     * keep {@code categoriaPermitida} populated (from the móvel) for info.
+     *
+     * <p>{@code orphanRemoval = true} on {@code Casa.slots} means clearing the
+     * list deletes the old SLOT rows; adding new ones inserts them — all in
+     * this single transaction.
+     */
+    @Transactional
+    public Casa salvarLayout(Long casaId, String nome, List<Placement> placements) {
+        Casa casa = casaRepository.findById(casaId)
+                .orElseThrow(() -> new NoSuchElementException("Casa não encontrada"));
+
+        // Persist the (optional) house name alongside the layout — both are
+        // saved when the client leaves edit mode.
+        if (nome != null && !nome.isBlank()) {
+            casa.setNome(nome.trim());
+        }
+
+        casa.getSlots().clear();
+
+        if (placements != null) {
+            for (Placement p : placements) {
+                if (p == null || p.tileName() == null || p.movelId() == null) {
+                    throw new IllegalArgumentException("Placement inválido (tileName/movelId)");
+                }
+                Movel movel = movelRepository.findById(p.movelId())
+                        .orElseThrow(() -> new NoSuchElementException(
+                                "Móvel não encontrado: " + p.movelId()));
+                Slot slot = new Slot(p.tileName(), movel.getCategoria());
+                slot.setMovelAtual(movel);
+                casa.addSlot(slot);
+            }
+        }
+
+        return casaRepository.save(casa);
+    }
+
+    /** One placed móvel: which grid tile (anchor) holds which catalog móvel. */
+    public record Placement(String tileName, Long movelId) { }
+
+    /** Body of {@code PUT /api/casas/{id}/layout}: the house name + its placements. */
+    public record LayoutRequest(String nome, List<Placement> placements) { }
 }

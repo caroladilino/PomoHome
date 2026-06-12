@@ -16,18 +16,34 @@ public class Ranking {
 
     public Ranking() { }
 
-    /**
-     * TODO (TEAM):
-     *   1. api.fetchRanking(new ApiClient.Callback<List<Jogador>>() {
-     *        public void onSuccess(List<Jogador> result) {
-     *            rankingJogadores = result;
-     *        }
-     *        public void onError(Throwable t) { ... }
-     *      });
-     *   2. Call this once on TelaRanking.show() and optionally every N seconds.
-     */
     public void atualizarDoServidor(ApiClient api) {
-        // TODO: implement following the steps above.
+        atualizarDoServidor(api, null, null);
+    }
+
+    /**
+     * Fetch the ranking and store it. {@code aoAtualizar} runs on success and
+     * {@code aoFalhar} on error — both on the network thread, so a screen that
+     * mutates UI from them must wrap that work in {@code Gdx.app.postRunnable}.
+     */
+    public void atualizarDoServidor(ApiClient api, Runnable aoAtualizar, Runnable aoFalhar) {
+        api.fetchRanking(new ApiClient.Callback<List<Jogador>>() {
+            @Override
+            public void onSuccess(List<Jogador> result) {
+                if (result != null) {
+                    rankingJogadores = result;
+                }
+                if (aoAtualizar != null) {
+                    aoAtualizar.run();
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                if (aoFalhar != null) {
+                    aoFalhar.run();
+                }
+            }
+        });
     }
 
     public List<Jogador> getRankingJogadores() { return rankingJogadores; }

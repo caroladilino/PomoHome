@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The player's house. Contains a fixed set of Slots, each of which can hold
@@ -33,6 +35,17 @@ public class Casa {
     private String nome;
 
     private int numLikes;
+
+    /**
+     * Ids of the players who have liked this house. A like is one-per-visitor
+     * and toggleable (like / unlike), so {@code numLikes} is kept equal to this
+     * set's size. Stored as a simple id collection (like Jogador.amigosIds) to
+     * avoid a Casa↔Jogador cycle.
+     */
+    @ElementCollection
+    @CollectionTable(name = "CASA_CURTIDO_POR", joinColumns = @JoinColumn(name = "casa_id"))
+    @Column(name = "jogador_id")
+    private Set<Long> curtidoPor = new HashSet<>();
 
     /**
      * Slots belong to this Casa and only this Casa.
@@ -80,4 +93,7 @@ public class Casa {
 
     public List<Slot> getSlots() { return slots; }
     public void setSlots(List<Slot> slots) { this.slots = slots; }
+
+    public Set<Long> getCurtidoPor() { return curtidoPor; }
+    public void setCurtidoPor(Set<Long> curtidoPor) { this.curtidoPor = curtidoPor; }
 }

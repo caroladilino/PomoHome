@@ -1,23 +1,9 @@
 package io.github.PomoHome.model;
 
 /**
- * Top-level holder for the current game session.
- *
- * Why a class and not a bunch of static fields? Because we want a SINGLE
- * instance that any Screen can reach. Two common patterns:
- *
- *  (a) Pass it in the constructor of every Screen
- *       new TelaLoja(jogo);  -> screen stores 'jogo' as a field
- *
- *  (b) Singleton-ish access through Main:
- *       Main.getJogo();
- *
- * TODO (TEAM): pick (a) OR (b) and stay consistent. (a) is easier to test;
- * (b) is shorter to write.
- *
- * TODO (TEAM): nothing here is persistent — log out / app close means this
- * object is gone. Anything that must survive a restart lives in the H2
- * database on the server.
+ * Top-level holder for the current game session — a single instance owned by
+ * {@link io.github.PomoHome.Main} and reached via {@code main.getJogo()}. In-memory
+ * only; anything that must survive a restart lives in the server's database.
  */
 public class Jogo {
 
@@ -27,12 +13,10 @@ public class Jogo {
     private Timer timer;
 
     public Jogo() {
-        // TODO: initialize the simple ones so callers don't NPE before
-        //       the first server call:
-        //   this.loja    = new Loja();
-        //   this.ranking = new Ranking();
-        //   this.timer   = new Timer();
-        // 'jogadorLogado' stays null until login completes.
+        // Ready before login so callers never NPE; jogadorLogado stays null until then.
+        this.loja = new Loja();
+        this.ranking = new Ranking();
+        this.timer = new Timer();
     }
 
     public Jogador getJogadorLogado() { return jogadorLogado; }

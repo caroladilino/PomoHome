@@ -3,7 +3,6 @@ package io.github.PomoHome.backend.service;
 import io.github.PomoHome.backend.entity.Casa;
 import io.github.PomoHome.backend.entity.Jogador;
 import io.github.PomoHome.backend.entity.Movel;
-import io.github.PomoHome.backend.entity.Slot;
 import io.github.PomoHome.backend.exception.AutenticacaoException;
 import io.github.PomoHome.backend.repository.JogadorRepository;
 import io.github.PomoHome.backend.repository.MovelRepository;
@@ -50,8 +49,14 @@ public class JogadorService {
 
     /**
      * Register a new player: validates the username is free, hashes the
-     * password with BCrypt, and attaches a default Casa with empty slots
-     * (cascade = ALL persists it together).
+     * password with BCrypt, and attaches a default Casa.
+     *
+     * <p>The house starts with <b>zero</b> slots. The frontend uses a free
+     * 8×8 isometric grid and persists the whole layout via
+     * {@code PUT /api/casas/{id}/layout} (see {@link CasaService#salvarLayout}),
+     * which (re)creates one Slot per placed móvel — {@code Slot.nomePosicao}
+     * holds the grid tile name (e.g. "L3C5"). The old fixed sofa/mesa/cama
+     * slots were removed because the grid is now the source of truth.
      */
     @Transactional
     public Jogador cadastrar(String username, String senha) {
@@ -63,9 +68,6 @@ public class JogadorService {
         }
 
         Casa casa = new Casa(username + "'s Home");
-        casa.addSlot(new Slot("sala-sofa", "sofa"));
-        casa.addSlot(new Slot("sala-mesa", "mesa"));
-        casa.addSlot(new Slot("quarto-cama", "cama"));
 
         Jogador jogador = new Jogador(username, passwordEncoder.encode(senha));
         jogador.setCasa(casa);
@@ -121,6 +123,19 @@ public class JogadorService {
     }
 
     /**
+     * Admin/debug: add {@code valor} coins to a player's balance WITHOUT
+     * touching their study time (so it doesn't pollute the ranking). Used to
+     * top up a test account.
+     */
+    @Transactional
+    public Jogador creditarSaldo(Long jogadorId, int valor) {
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(NoSuchElementException::new);
+        jogador.setSaldo(jogador.getSaldo() + valor);
+        return jogadorRepository.save(jogador);
+    }
+
+    /**
      * Buy a Movel from the store and add it to the player's inventory.
      * Debit + inventory add happen in one @Transactional so a failure
      * rolls the coin debit back automatically.
@@ -134,8 +149,23 @@ public class JogadorService {
         if (jogador.getSaldo() < movel.getPreco()) {
             throw new IllegalArgumentException("Saldo insuficiente");
         }
+        // Each catalog móvel can be owned at most once — no duplicate purchases.
+        boolean jaPossui = jogador.getInventario().stream()
+                .anyMatch(m -> m.getId().equals(movel.getId()));
+        if (jaPossui) {
+            throw new IllegalArgumentException("Móvel já comprado");
+        }
         jogador.setSaldo(jogador.getSaldo() - movel.getPreco());
         jogador.getInventario().add(movel);
+        return jogadorRepository.save(jogador);
+    }
+
+    /** Admin/debug: empty a player's furniture inventory (keeps coins). */
+    @Transactional
+    public Jogador limparInventario(Long jogadorId) {
+        Jogador jogador = jogadorRepository.findById(jogadorId)
+                .orElseThrow(NoSuchElementException::new);
+        jogador.getInventario().clear();
         return jogadorRepository.save(jogador);
     }
 

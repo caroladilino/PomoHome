@@ -11,7 +11,9 @@ import com.google.gson.reflect.TypeToken;
 import io.github.PomoHome.model.Casa;
 import io.github.PomoHome.model.Jogador;
 import io.github.PomoHome.model.Movel;
+import io.github.PomoHome.model.Placement;
 import io.github.PomoHome.model.SessaoEstudo;
+import io.github.PomoHome.model.SolicitacaoAmizade;
 
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -175,6 +177,53 @@ public class ApiClient {
                 null, Casa.class, cb);
     }
 
+    /** GET /api/jogadores/{id} -> Jogador (refresh saldo/inventário, resolve a friend's id). */
+    public void fetchJogadorPorId(long jogadorId, Callback<Jogador> cb) {
+        send(HttpMethods.GET, "/jogadores/" + jogadorId, null, Jogador.class, cb);
+    }
+
+    // ---------------------------------------------------------------
+    // Friends (solicitações de amizade)
+    // ---------------------------------------------------------------
+
+    /** POST /api/solicitacoes?remetenteId=..&destinatarioId=.. -> created request (201). */
+    public void enviarSolicitacao(long remetenteId, long destinatarioId,
+                                  Callback<SolicitacaoAmizade> cb) {
+        send(HttpMethods.POST,
+                "/solicitacoes?remetenteId=" + remetenteId + "&destinatarioId=" + destinatarioId,
+                null, SolicitacaoAmizade.class, cb);
+    }
+
+    /** POST /api/solicitacoes/{id}/aceitar -> updated request. */
+    public void aceitarSolicitacao(long id, Callback<SolicitacaoAmizade> cb) {
+        send(HttpMethods.POST, "/solicitacoes/" + id + "/aceitar",
+                null, SolicitacaoAmizade.class, cb);
+    }
+
+    /** POST /api/solicitacoes/{id}/recusar -> updated request. */
+    public void recusarSolicitacao(long id, Callback<SolicitacaoAmizade> cb) {
+        send(HttpMethods.POST, "/solicitacoes/" + id + "/recusar",
+                null, SolicitacaoAmizade.class, cb);
+    }
+
+    /** GET /api/solicitacoes/recebidas/{jogadorId} -> pending inbox. */
+    public void listarSolicitacoesRecebidas(long jogadorId, Callback<List<SolicitacaoAmizade>> cb) {
+        Type listType = new TypeToken<List<SolicitacaoAmizade>>() { }.getType();
+        send(HttpMethods.GET, "/solicitacoes/recebidas/" + jogadorId, null, listType, cb);
+    }
+
+    /** GET /api/solicitacoes/enviadas/{jogadorId} -> pending outbox. */
+    public void listarSolicitacoesEnviadas(long jogadorId, Callback<List<SolicitacaoAmizade>> cb) {
+        Type listType = new TypeToken<List<SolicitacaoAmizade>>() { }.getType();
+        send(HttpMethods.GET, "/solicitacoes/enviadas/" + jogadorId, null, listType, cb);
+    }
+
+    /** DELETE /api/solicitacoes/amizade/{jogadorId}/{amigoId} -> 204 (no body). */
+    public void removerAmigo(long jogadorId, long amigoId, Callback<Void> cb) {
+        send(HttpMethods.DELETE, "/solicitacoes/amizade/" + jogadorId + "/" + amigoId,
+                null, null, cb);
+    }
+
     // ---------------------------------------------------------------
     // POSTs / PUTs (with body when applicable)
     // ---------------------------------------------------------------
@@ -199,10 +248,32 @@ public class ApiClient {
                 null, Casa.class, cb);
     }
 
-    /** POST /api/casas/{id}/like -> updated Casa. */
-    public void darLike(long casaId, Callback<Casa> cb) {
-        send(HttpMethods.POST, "/casas/" + casaId + "/like",
+    /** POST /api/casas/{id}/like?jogadorId=.. -> updated Casa (toggles the visitor's like). */
+    public void darLike(long casaId, long jogadorId, Callback<Casa> cb) {
+        send(HttpMethods.POST, "/casas/" + casaId + "/like?jogadorId=" + jogadorId,
                 null, Casa.class, cb);
+    }
+
+    /**
+     * PUT /api/casas/{casaId}/layout
+     * body: { nome, placements: [ {tileName, movelId}, ... ] }
+     * Replaces the whole house layout (free 8×8 grid) AND persists the house
+     * name. Called when edit mode ends. Returns the updated Casa.
+     */
+    public void salvarLayoutCasa(long casaId, String nome, List<Placement> placements,
+                                 Callback<Casa> cb) {
+        send(HttpMethods.PUT, "/casas/" + casaId + "/layout",
+                new LayoutRequest(nome, placements), Casa.class, cb);
+    }
+
+    /** Request body for the layout-save endpoint (field names match the server record). */
+    private static final class LayoutRequest {
+        final String nome;
+        final List<Placement> placements;
+        LayoutRequest(String nome, List<Placement> placements) {
+            this.nome = nome;
+            this.placements = placements;
+        }
     }
 
     private static String encode(String s) {

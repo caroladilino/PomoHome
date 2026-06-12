@@ -1,10 +1,14 @@
 package io.github.PomoHome.ui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
@@ -12,11 +16,12 @@ import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 
 /**
  * Builds a scene2d {@link Skin} entirely in code — no uiskin.json / atlas /
- * .fnt assets needed (we ship none). It uses libGDX's built-in default
- * {@link BitmapFont} and a single 1x1 white {@link Texture} that every
- * drawable tints via {@link Skin#newDrawable(String, Color)}.
+ * .fnt assets needed. Text is rendered from bundled DejaVuSans .ttf files via
+ * FreeType (a crisp body font {@code "default-font"} and a large timer font
+ * {@code "timer"}); every drawable tints a single 1x1 white {@link Texture}
+ * via {@link Skin#newDrawable(String, Color)}.
  *
- * Disposal: the font and the white texture are registered in the Skin, so
+ * Disposal: both fonts and the white texture are registered in the Skin, so
  * a single {@code skin.dispose()} frees everything. Build ONE skin in the
  * Game and share it across screens.
  */
@@ -42,8 +47,16 @@ public final class UiSkin {
         skin.add("white", new Texture(pm)); // Skin owns + disposes the Texture.
         pm.dispose();
 
-        BitmapFont font = new BitmapFont(); // libGDX built-in font.
-        skin.add("default-font", font);     // Skin owns + disposes the font.
+        // Crisp text rendered from a bundled .ttf via FreeType, instead of
+        // scaling the low-res built-in BitmapFont. DejaVuSans also covers the
+        // accented Portuguese glyphs (ã, ç, í, …). Two sizes: a body font for
+        // labels/buttons and a large one for the Pomodoro timer digits.
+        BitmapFont font = gerarFonte("DejaVuSans.ttf", 18, Color.WHITE);
+        // 48px keeps "MM:SS" inside the ring's inner circle (radius ~85) without
+        // overflowing onto the grey ring band.
+        BitmapFont timerFont = gerarFonte("DejaVuSans-Bold.ttf", 48, Color.BLACK);
+        skin.add("default-font", font);  // Skin owns + disposes the font.
+        skin.add("timer", timerFont);    // big digits for TelaJogo's ring.
 
         // --- Label ---
         skin.add("default", new Label.LabelStyle(font, Color.WHITE));
@@ -74,7 +87,48 @@ public final class UiSkin {
         tb.disabledFontColor = new Color(0.75f, 0.75f, 0.75f, 1f);
         skin.add("default", tb);
 
+        // --- TextButton "rosa" (pink) --- the main game menu (TelaJogo) keeps the
+        // prototype's pink buttons with dark text, distinct from the blue default.
+        TextButton.TextButtonStyle tbRosa = new TextButton.TextButtonStyle();
+        tbRosa.font = font;
+        tbRosa.up = pad(skin.newDrawable("white", Color.valueOf("#E58F8F")));
+        tbRosa.down = pad(skin.newDrawable("white", Color.valueOf("#C97A7A")));
+        tbRosa.over = pad(skin.newDrawable("white", Color.valueOf("#D88585")));
+        tbRosa.disabled = pad(skin.newDrawable("white", BTN_DISABLED));
+        tbRosa.fontColor = Color.BLACK;
+        tbRosa.disabledFontColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+        skin.add("rosa", tbRosa);
+
+        // --- ScrollPane (needed by TelaRanking / TelaAmigos lists) ---
+        // Without a registered "default" ScrollPaneStyle, `new ScrollPane(actor,
+        // skin)` throws "No ScrollPaneStyle registered with name: default".
+        ScrollPane.ScrollPaneStyle sp = new ScrollPane.ScrollPaneStyle();
+        sp.vScroll = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.06f));
+        sp.vScrollKnob = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.25f));
+        sp.hScroll = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.06f));
+        sp.hScrollKnob = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.25f));
+        skin.add("default", sp);
+
         return skin;
+    }
+
+    /**
+     * Render a {@link BitmapFont} from a bundled .ttf at {@code size} px using
+     * FreeType. Linear filtering keeps it smooth when the viewport scales it.
+     * The generator is disposed immediately; the returned font is owned by the
+     * caller (registered in the Skin, which disposes it).
+     */
+    private static BitmapFont gerarFonte(String arquivo, int size, Color cor) {
+        FreeTypeFontGenerator generator =
+                new FreeTypeFontGenerator(Gdx.files.internal(arquivo));
+        FreeTypeFontParameter param = new FreeTypeFontParameter();
+        param.size = size;
+        param.color = cor;
+        param.minFilter = Texture.TextureFilter.Linear;
+        param.magFilter = Texture.TextureFilter.Linear;
+        BitmapFont font = generator.generateFont(param);
+        generator.dispose();
+        return font;
     }
 
     private static Drawable pad(Drawable d) {

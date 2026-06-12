@@ -2,6 +2,7 @@ package io.github.PomoHome.backend.controller;
 
 import io.github.PomoHome.backend.dto.CasaDTO;
 import io.github.PomoHome.backend.service.CasaService;
+import io.github.PomoHome.backend.service.CasaService.LayoutRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,11 +54,26 @@ public class CasaController {
     }
 
     /**
-     * POST /api/casas/{id}/like
-     * A visiting friend likes the house.
+     * POST /api/casas/{id}/like?jogadorId={visitanteId}
+     * A visiting friend toggles their like on the house (like / unlike).
      */
     @PostMapping("/{id}/like")
-    public ResponseEntity<CasaDTO> darLike(@PathVariable Long id) {
-        return ResponseEntity.ok(CasaDTO.from(casaService.darLike(id)));
+    public ResponseEntity<CasaDTO> darLike(@PathVariable Long id, @RequestParam Long jogadorId) {
+        return ResponseEntity.ok(CasaDTO.from(casaService.darLike(id, jogadorId)));
+    }
+
+    /**
+     * PUT /api/casas/{casaId}/layout
+     * Body: { "nome": "Minha Casa",
+     *         "placements": [ { "tileName": "L3C5", "movelId": 7 }, ... ] }.
+     *
+     * Replaces the whole house layout (the free 8×8 grid) AND persists the house
+     * name. Called by the client when it leaves "edit mode". Returns the Casa.
+     */
+    @PutMapping("/{casaId}/layout")
+    public ResponseEntity<CasaDTO> salvarLayout(@PathVariable Long casaId,
+                                                @RequestBody LayoutRequest req) {
+        return ResponseEntity.ok(CasaDTO.from(
+                casaService.salvarLayout(casaId, req.nome(), req.placements())));
     }
 }
