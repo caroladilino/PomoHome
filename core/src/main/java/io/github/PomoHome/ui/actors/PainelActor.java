@@ -1,25 +1,26 @@
 package io.github.PomoHome.ui.actors;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
+import io.github.PomoHome.ui.Palette;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
 /**
- * The game screen's left panel: a rounded pink border around a cream inner area,
- * drawn through the Stage's batch via {@link ShapeDrawer}. Non-interactive — the
- * buttons / store / inventory are separate actors layered on top.
+ * The game screen's left panel: a rounded parchment surface with a soft taupe
+ * outline, drawn through the Stage's batch via {@link ShapeDrawer}.
+ * Non-interactive — the buttons / store / inventory are separate actors layered
+ * on top.
  *
- * <p>{@link #BORDA} is the border thickness; the screen reuses it to inset the
- * panel's content (scroll panes, labels).
+ * <p>{@link #BORDA} is the outline thickness; the screen reuses it to inset the
+ * panel's content (scroll panes, labels). The old loud pink border was replaced
+ * by {@link Palette#PERGAMINHO_BORDA}, a darker shade of the parchment that
+ * defines the edge without competing with the content.
  */
 public class PainelActor extends Actor {
 
     public static final float BORDA = 28f;
     private static final float RAIO = BORDA * 2f;
-    private static final Color COR_BORDA = Color.PINK;
-    private static final Color COR_MIOLO = Color.valueOf("#EDE8D8");
 
     private final ShapeDrawer drawer;
 
@@ -31,9 +32,9 @@ public class PainelActor extends Actor {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         float x = getX(), y = getY(), w = getWidth(), h = getHeight();
-        drawer.setColor(COR_BORDA);
+        drawer.setColor(Palette.PERGAMINHO_BORDA);
         arredondado(x, y, w, h, RAIO);
-        drawer.setColor(COR_MIOLO);
+        drawer.setColor(Palette.PERGAMINHO);
         arredondado(x + BORDA, y + BORDA, w - 2f * BORDA, h - 2f * BORDA,
                 Math.max(0f, RAIO - BORDA));
     }

@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import io.github.PomoHome.model.Casa;
 import io.github.PomoHome.model.Movel;
+import io.github.PomoHome.ui.Palette;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
 /**
@@ -37,10 +38,10 @@ public class CasaActor extends Actor {
 
     public static final int MATRIZ = 8;
 
-    private static final Color VAZIO = Color.valueOf("#4A5568");
-    private static final Color OCUPADO = Color.valueOf("#8B9BB4");
-    private static final Color CONTORNO = Color.valueOf("#1A202C");
-    private static final Color SELECAO = Color.valueOf("#FFD54A");
+    private static final Color VAZIO = Palette.TILE_VAZIO;
+    private static final Color OCUPADO = Palette.TILE_OCUPADO;
+    private static final Color CONTORNO = Palette.TILE_CONTORNO;
+    private static final Color SELECAO = Palette.TILE_SELECAO;
 
     private final Casa casa;
     private final boolean editavel;
@@ -56,8 +57,9 @@ public class CasaActor extends Actor {
     private final boolean[] anchor = new boolean[MATRIZ * MATRIZ];
     private int selecionado = -1;
 
-    // Grid metrics from the last recalcular() (world units) — for name/X anchors.
-    private float originX, originY, tileH;
+    // Grid metrics from the last recalcular() (world units) — for name/X anchors
+    // and the drop shadow.
+    private float originX, originY, tileW, tileH;
 
     public CasaActor(Casa casa, boolean editavel, ShapeDrawer drawer, BitmapFont fonte) {
         this.casa = casa;
@@ -214,7 +216,7 @@ public class CasaActor extends Actor {
         float baseTileW = 100f, baseTileH = 50f;
         float escala = Math.min(1f, Math.min(areaW / (8f * baseTileW),
                                              areaH / (8f * baseTileH)));
-        float tileW = baseTileW * escala;
+        tileW = baseTileW * escala;
         tileH = baseTileH * escala;
         originX = getX() + areaW / 2f;
         originY = getY() + areaH / 2f - 3.5f * tileH;
@@ -240,20 +242,17 @@ public class CasaActor extends Actor {
     public void draw(Batch batch, float parentAlpha) {
         recalcular();
 
+        // Soft drop shadow under the whole grid so it lifts off the (dark) sky.
+        desenharSombra();
+
         for (int i = 0; i < poligonos.length; i++) {
             float[] v = poligonos[i].getVertices();
-            if (ocupacao[i] == null) {
-                drawer.setColor(VAZIO);
-                contorno(v);
-            } else {
-                drawer.setColor(OCUPADO);
-                // Two triangles tessellate the diamond (filledPolygon-equivalent,
-                // built from the proven filledTriangle primitive).
-                drawer.filledTriangle(v[0], v[1], v[2], v[3], v[4], v[5]);
-                drawer.filledTriangle(v[0], v[1], v[4], v[5], v[6], v[7]);
-                drawer.setColor(CONTORNO);
-                contorno(v);
-            }
+            // Every tile gets a solid fill now (light for empty, muted for
+            // occupied) so the grid stays legible against any background.
+            drawer.setColor(ocupacao[i] == null ? VAZIO : OCUPADO);
+            preencher(v);
+            drawer.setColor(CONTORNO);
+            contorno(v);
         }
 
         // Móvel names on their anchor tile (drawn after fills so nothing covers them).
@@ -274,6 +273,27 @@ public class CasaActor extends Actor {
             drawer.setColor(SELECAO);
             contorno(poligonos[selecionado].getVertices());
         }
+    }
+
+    /** Fill a diamond with the current color (two triangles tessellate it). */
+    private void preencher(float[] v) {
+        drawer.filledTriangle(v[0], v[1], v[2], v[3], v[4], v[5]);
+        drawer.filledTriangle(v[0], v[1], v[4], v[5], v[6], v[7]);
+    }
+
+    /**
+     * One big translucent diamond matching the 8×8 footprint, offset slightly
+     * down/right, drawn before the tiles to read as a soft shadow on the sky.
+     */
+    private void desenharSombra() {
+        float off = Math.max(5f, tileH * 0.18f);
+        float topX = originX + off,                 topY = originY - tileH / 2f - off;
+        float rightX = originX + 4f * tileW + off,  rightY = originY + 3.5f * tileH - off;
+        float botX = originX + off,                 botY = originY + 7.5f * tileH - off;
+        float leftX = originX - 4f * tileW + off,   leftY = originY + 3.5f * tileH - off;
+        drawer.setColor(Palette.TILE_SOMBRA);
+        drawer.filledTriangle(topX, topY, rightX, rightY, botX, botY);
+        drawer.filledTriangle(topX, topY, botX, botY, leftX, leftY);
     }
 
     /** Draw a diamond outline as four lines (avoids ShapeDrawer polygon API quirks). */

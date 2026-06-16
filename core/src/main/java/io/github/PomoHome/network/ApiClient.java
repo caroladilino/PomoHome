@@ -9,6 +9,7 @@ import com.badlogic.gdx.net.HttpRequestBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.github.PomoHome.model.Casa;
+import io.github.PomoHome.model.HistoricoSemanal;
 import io.github.PomoHome.model.Jogador;
 import io.github.PomoHome.model.Movel;
 import io.github.PomoHome.model.Placement;
@@ -180,6 +181,12 @@ public class ApiClient {
     /** GET /api/jogadores/{id} -> Jogador (refresh saldo/inventário, resolve a friend's id). */
     public void fetchJogadorPorId(long jogadorId, Callback<Jogador> cb) {
         send(HttpMethods.GET, "/jogadores/" + jogadorId, null, Jogador.class, cb);
+    }
+
+    /** GET /api/sessoes/jogador/{id}/semana -> the player's own weekly study history (RF03). */
+    public void fetchHistoricoSemanal(long jogadorId, Callback<HistoricoSemanal> cb) {
+        send(HttpMethods.GET, "/sessoes/jogador/" + jogadorId + "/semana",
+                null, HistoricoSemanal.class, cb);
     }
 
     // ---------------------------------------------------------------

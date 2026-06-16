@@ -31,9 +31,11 @@ import io.github.PomoHome.model.Movel;
 import io.github.PomoHome.model.Timer;
 import io.github.PomoHome.network.ApiClient;
 import io.github.PomoHome.ui.actors.CasaActor;
+import io.github.PomoHome.ui.actors.CeuActor;
 import io.github.PomoHome.ui.actors.CursorMovelActor;
 import io.github.PomoHome.ui.actors.PainelActor;
 import io.github.PomoHome.ui.actors.TimerRingActor;
+import io.github.PomoHome.ui.Palette;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
 import java.util.ArrayList;
@@ -91,10 +93,11 @@ public class TelaJogo implements Screen {
 
     private Stage stage;
     private ShapeDrawer drawer;        // draws shapes through the Stage's batch
+    private CeuActor ceuActor;         // sun/moon arcing in the sky (behind all)
     private PainelActor painel;
     private TimerRingActor timerRing;
     private TextButton btnEsq, btnDir, btnCentro, btnMais, btnMenos;
-    private TextButton btnLoja, btnEditarCasa, btnRanking, btnAmigos, btnFechar;
+    private TextButton btnLoja, btnEditarCasa, btnRanking, btnAmigos, btnHistorico, btnFechar;
     private Label lblMoeda, lblTituloPainel, lblFeedback;
 
     // Store + inventory: a ScrollPane of a 2-column Table each, rebuilt on demand.
@@ -147,10 +150,12 @@ public class TelaJogo implements Screen {
         stage = new Stage(viewport, new PolygonSpriteBatch());
         drawer = new ShapeDrawer(stage.getBatch(), main.getSkin().getRegion("white"));
 
-        // Background actors, bottom to top: panel, timer ring, house grid.
+        // Background actors, bottom to top: sky (sun/moon), panel, timer ring, house.
+        ceuActor = new CeuActor(jogo.getCicloDiaNoite(), drawer);
         painel = new PainelActor(drawer);
         timerRing = new TimerRingActor(jogo.getTimer(), drawer, fonteTimer);
         casaActor = new CasaActor(casaDoJogador(), true, drawer, fonteBotao);
+        stage.addActor(ceuActor);
         stage.addActor(painel);
         stage.addActor(timerRing);
         stage.addActor(casaActor);
@@ -176,13 +181,14 @@ public class TelaJogo implements Screen {
         btnEditarCasa = botaoRosa("EDITAR CASA");
         btnRanking = botaoRosa("RANKING");
         btnAmigos = botaoRosa("AMIGOS");
+        btnHistorico = botaoRosa("HISTÓRICO");
 
         lblMoeda = new Label("$0", main.getSkin());
-        lblMoeda.setColor(Color.valueOf("#B8860B")); // dark goldenrod, reads on cream
+        lblMoeda.setColor(Palette.OURO_TEXTO); // deep gold, reads on parchment
         lblTituloPainel = new Label("", main.getSkin());
-        lblTituloPainel.setColor(Color.BLACK);
+        lblTituloPainel.setColor(Palette.TEXTO_ESCURO);
         lblFeedback = new Label("", main.getSkin());
-        lblFeedback.setColor(Color.WHITE);
+        lblFeedback.setColor(Palette.TEXTO_CLARO);
 
         aoClicar(btnEsq, this::acaoEsquerda);
         aoClicar(btnDir, this::acaoDireita);
@@ -193,9 +199,10 @@ public class TelaJogo implements Screen {
         aoClicar(btnEditarCasa, this::abrirInventario);
         aoClicar(btnRanking, () -> main.setScreen(new TelaRanking(main)));
         aoClicar(btnAmigos, () -> main.setScreen(new TelaAmigos(main)));
+        aoClicar(btnHistorico, () -> main.setScreen(new TelaHistorico(main)));
 
         for (TextButton b : new TextButton[]{btnEsq, btnDir, btnCentro, btnMais, btnMenos,
-                btnLoja, btnEditarCasa, btnRanking, btnAmigos}) {
+                btnLoja, btnEditarCasa, btnRanking, btnAmigos, btnHistorico}) {
             stage.addActor(b);
         }
         stage.addActor(lblMoeda);
@@ -266,7 +273,8 @@ public class TelaJogo implements Screen {
 
     /** A vertical-only ScrollPane that never steals its cells' clicks (no drag-scroll). */
     private ScrollPane scrollVertical(Table conteudo) {
-        ScrollPane sp = new ScrollPane(conteudo, main.getSkin());
+        // "painel" style: a visible taupe/sage scrollbar tuned for the cream panel.
+        ScrollPane sp = new ScrollPane(conteudo, main.getSkin(), "painel");
         sp.setFadeScrollBars(false);
         sp.setScrollingDisabled(true, false);
         sp.setFlickScroll(false);
@@ -315,7 +323,7 @@ public class TelaJogo implements Screen {
                 }
                 boolean podePagar = m.getPreco() <= saldo;
                 Table cell = criarCelula(m.getNome(), "$" + m.getPreco(),
-                        podePagar ? Color.BLACK : Color.RED, "#B0B59E",
+                        podePagar ? Palette.TEXTO_ESCURO : Palette.ERRO, Palette.CELULA_LOJA,
                         () -> { if (jogador != null) comprar(jogador, m); });
                 lojaTabela.add(cell).size(110f, 84f).pad(8f);
                 if (++col % 2 == 0) {
@@ -339,7 +347,7 @@ public class TelaJogo implements Screen {
         }
         int col = 0;
         for (Movel m : itens) {
-            Table cell = criarCelula(m.getNome(), null, Color.BLACK, "#C9C9C9",
+            Table cell = criarCelula(m.getNome(), null, Palette.TEXTO_ESCURO, Palette.CELULA_INV,
                     () -> {
                         movelNaMao = m;          // pick up (drop on the grid next)
                         casaActor.limparSelecao();
@@ -353,18 +361,31 @@ public class TelaJogo implements Screen {
     }
 
     /** One clickable item cell: a tinted box with a name and (optional) price label. */
-    private Table criarCelula(String nome, String preco, Color corPreco, String corFundo,
+    private Table criarCelula(String nome, String preco, Color corPreco, Color corFundo,
                               Runnable aoClicar) {
         Table cell = new Table();
-        cell.setBackground(main.getSkin().newDrawable("white", Color.valueOf(corFundo)));
+        cell.setBackground(main.getSkin().newDrawable("white", corFundo));
+        cell.setTouchable(Touchable.enabled);
+
+        // Name: centred and clipped with an ellipsis so a long name never spills
+        // outside the box. growX pins it to the (fixed) cell width so the ellipsis
+        // actually engages instead of widening the cell.
         Label lNome = new Label(nome, main.getSkin());
-        lNome.setColor(Color.BLACK);
-        cell.add(lNome).expand().center().row();
+        lNome.setColor(Palette.TEXTO_ESCURO);
+        lNome.setEllipsis(true);
+        lNome.setAlignment(com.badlogic.gdx.utils.Align.center);
+        lNome.setTouchable(Touchable.disabled);
+        cell.add(lNome).growX().expandY().center().padLeft(6f).padRight(6f).row();
+
         if (preco != null) {
             Label lPreco = new Label(preco, main.getSkin());
             lPreco.setColor(corPreco);
-            cell.add(lPreco).padBottom(4f);
+            lPreco.setTouchable(Touchable.disabled);
+            cell.add(lPreco).padBottom(6f);
         }
+
+        // The labels are non-touchable, so the cell itself is the hit target across
+        // its whole area — a click anywhere in the box counts, not just on the text.
         cell.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) {
                 aoClicar.run();
@@ -403,7 +424,11 @@ public class TelaJogo implements Screen {
         atualizarLogica(delta);
         atualizarBotoes();
 
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+        // RNF02: the world advances day↔night only while this (the main house)
+        // screen is open; other screens just read the resulting phase.
+        jogo.getCicloDiaNoite().avancar(delta);
+
+        ScreenUtils.clear(Palette.ceu(jogo.getCicloDiaNoite().fatorNoite()));
         stage.act(delta);
         stage.draw();
     }
@@ -415,6 +440,7 @@ public class TelaJogo implements Screen {
     private void calcularLayout() {
         float w = viewport.getWorldWidth();
         float h = viewport.getWorldHeight();
+        ceuActor.setBounds(0f, 0f, w, h);   // sky spans the whole screen
         layoutPainel(w, h);
         layoutCasa(w, h);
         layoutMenu();
@@ -479,6 +505,7 @@ public class TelaJogo implements Screen {
         btnEditarCasa.setBounds(colR, rowTop - rowStep, bW, bH);
         btnRanking.setBounds(colL, rowTop - 2f * rowStep, bW, bH);
         btnAmigos.setBounds(colR, rowTop - 2f * rowStep, bW, bH);
+        btnHistorico.setBounds(timerCentroX - bW / 2f, rowTop - 3f * rowStep, bW, bH);
 
         // ACEITAR under the ring, ± on its sides.
         btnCentro.setBounds(timerCentroX - bW / 2f, rowTop, bW, bH);
@@ -532,6 +559,7 @@ public class TelaJogo implements Screen {
         btnEditarCasa.setVisible(padrao);
         btnRanking.setVisible(padrao);
         btnAmigos.setVisible(padrao);
+        btnHistorico.setVisible(padrao);
 
         btnCentro.setVisible(editando);
         btnMais.setVisible(editando);

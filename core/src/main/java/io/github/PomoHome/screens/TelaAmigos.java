@@ -20,6 +20,7 @@ import io.github.PomoHome.Main;
 import io.github.PomoHome.model.Jogador;
 import io.github.PomoHome.model.SolicitacaoAmizade;
 import io.github.PomoHome.network.ApiClient;
+import io.github.PomoHome.ui.Palette;
 
 import java.util.List;
 
@@ -70,7 +71,7 @@ public class TelaAmigos implements Screen {
             @Override public void changed(ChangeEvent event, Actor actor) { buscarEEnviar(); }
         });
         statusBusca = new Label("", main.getSkin());
-        statusBusca.setColor(Color.LIGHT_GRAY);
+        statusBusca.setColor(Palette.NEUTRO);
 
         Table linhaBusca = new Table();
         linhaBusca.add(campoBusca).width(220f).height(40f).padRight(10f);
@@ -153,27 +154,27 @@ public class TelaAmigos implements Screen {
             return;
         }
         if (alvo.equalsIgnoreCase(eu.getUsername())) {
-            mostrarStatus("Você não pode se adicionar.", Color.SCARLET);
+            mostrarStatus("Você não pode se adicionar.", Palette.ERRO);
             return;
         }
-        mostrarStatus("Buscando...", Color.LIGHT_GRAY);
+        mostrarStatus("Buscando...", Palette.NEUTRO);
         api.fetchJogadorPorUsername(alvo, new ApiClient.Callback<Jogador>() {
             @Override public void onSuccess(Jogador encontrado) {
                 api.enviarSolicitacao(eu.getId(), encontrado.getId(),
                         new ApiClient.Callback<SolicitacaoAmizade>() {
                             @Override public void onSuccess(SolicitacaoAmizade s) {
                                 Gdx.app.postRunnable(() -> {
-                                    mostrarStatus("Solicitação enviada para " + encontrado.getUsername(), Color.LIME);
+                                    mostrarStatus("Solicitação enviada para " + encontrado.getUsername(), Palette.SUCESSO);
                                     campoBusca.setText("");
                                 });
                             }
                             @Override public void onError(Throwable t) {
-                                Gdx.app.postRunnable(() -> mostrarStatus(t.getMessage(), Color.SCARLET));
+                                Gdx.app.postRunnable(() -> mostrarStatus(t.getMessage(), Palette.ERRO));
                             }
                         });
             }
             @Override public void onError(Throwable t) {
-                Gdx.app.postRunnable(() -> mostrarStatus("Usuário não encontrado.", Color.SCARLET));
+                Gdx.app.postRunnable(() -> mostrarStatus("Usuário não encontrado.", Palette.ERRO));
             }
         });
     }
@@ -220,7 +221,7 @@ public class TelaAmigos implements Screen {
                 Gdx.app.postRunnable(TelaAmigos.this::recarregar);
             }
             @Override public void onError(Throwable t) {
-                Gdx.app.postRunnable(() -> mostrarStatus(t.getMessage(), Color.SCARLET));
+                Gdx.app.postRunnable(() -> mostrarStatus(t.getMessage(), Palette.ERRO));
             }
         };
         if (aceitar) {
@@ -270,7 +271,7 @@ public class TelaAmigos implements Screen {
 
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.12f, 0.12f, 0.16f, 1f);
+        ScreenUtils.clear(Palette.ceu(main.getJogo().getCicloDiaNoite().fatorNoite()));
         stage.act(delta);
         stage.draw();
     }

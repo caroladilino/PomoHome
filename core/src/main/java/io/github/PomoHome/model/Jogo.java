@@ -11,12 +11,14 @@ public class Jogo {
     private Loja loja;
     private Ranking ranking;
     private Timer timer;
+    private CicloDiaNoite cicloDiaNoite;
 
     public Jogo() {
         // Ready before login so callers never NPE; jogadorLogado stays null until then.
         this.loja = new Loja();
         this.ranking = new Ranking();
         this.timer = new Timer();
+        this.cicloDiaNoite = new CicloDiaNoite();
     }
 
     public Jogador getJogadorLogado() { return jogadorLogado; }
@@ -30,4 +32,7 @@ public class Jogo {
 
     public Timer getTimer() { return timer; }
     public void setTimer(Timer timer) { this.timer = timer; }
+
+    public CicloDiaNoite getCicloDiaNoite() { return cicloDiaNoite; }
+    public void setCicloDiaNoite(CicloDiaNoite cicloDiaNoite) { this.cicloDiaNoite = cicloDiaNoite; }
 }

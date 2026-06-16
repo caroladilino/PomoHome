@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import io.github.PomoHome.Main;
 import io.github.PomoHome.model.Casa;
 import io.github.PomoHome.network.ApiClient;
+import io.github.PomoHome.ui.Palette;
 import io.github.PomoHome.ui.actors.CasaActor;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
@@ -107,7 +108,7 @@ public class TelaVisita implements Screen {
 
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+        ScreenUtils.clear(Palette.ceu(main.getJogo().getCicloDiaNoite().fatorNoite()));
         float w = viewport.getWorldWidth();
         float h = viewport.getWorldHeight();
 
