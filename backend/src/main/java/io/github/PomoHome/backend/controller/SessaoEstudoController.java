@@ -1,5 +1,6 @@
 package io.github.PomoHome.backend.controller;
 
+import io.github.PomoHome.backend.dto.HistoricoSemanalDTO;
 import io.github.PomoHome.backend.dto.SessaoEstudoDTO;
 import io.github.PomoHome.backend.service.SessaoEstudoService;
 import org.springframework.http.ResponseEntity;
@@ -43,5 +44,15 @@ public class SessaoEstudoController {
                 .map(SessaoEstudoDTO::from)
                 .toList();
         return ResponseEntity.ok(historico);
+    }
+
+    /**
+     * GET /api/sessoes/jogador/{jogadorId}/semana
+     * The player's study time for the current week: per-day minutes (Mon→Sun)
+     * plus the weekly total (RF03). Backs the private history screen.
+     */
+    @GetMapping("/jogador/{jogadorId}/semana")
+    public ResponseEntity<HistoricoSemanalDTO> historicoSemanal(@PathVariable Long jogadorId) {
+        return ResponseEntity.ok(sessaoService.historicoSemanal(jogadorId));
     }
 }

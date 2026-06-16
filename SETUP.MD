@@ -43,9 +43,19 @@ In a **second terminal** (leave the backend running):
 ```
 
 The game opens on `TelaLogin`. Enter a username/password and **Entrar**
-(login) or **Criar conta** (register). On success you land on `TelaPrincipal`.
-If the backend is down you'll see *"Não foi possível conectar ao servidor"* —
-that's the client telling you to start step 1.
+(login) or **Criar conta** (register). On success you land on `TelaJogo` — the
+main game screen: Pomodoro timer (INICIAR/EDITAR/LOJA), an 8×8 isometric house,
+a collapsible inventory on the right, and RANKING/AMIGOS buttons. If the backend
+is down you'll see *"Não foi possível conectar ao servidor"* — start step 1.
+
+**Edit mode:** opening the inventory (the `<` tab on the right) puts the house in
+edit mode — drag furniture onto the grid; the timer is locked until you close the
+inventory, which saves the layout to the server.
+
+> New accounts start with an **empty house**. The seeded store catalog appears
+> automatically (the backend seeds `MOVEL` on first boot). If you have an old H2
+> database from before this change and see leftover sofa/mesa/cama slots, delete
+> `backend/data/pomohome.mv.db` once and let it regenerate.
 
 ### Other useful commands
 
@@ -121,8 +131,28 @@ distinct case from a real HTTP error.
 | `fetchCasaDoJogador(jogadorId, cb)` | `GET /casas/jogador/{id}` | `Casa` |
 | `registrarSessao(jogadorId, minutos, cb)` | `POST /sessoes` | `SessaoEstudo` |
 | `comprarMovel(jogadorId, movelId, cb)` | `POST /loja/comprar` | updated `Jogador` |
-| `colocarMovelNoSlot(slotId, movelId, cb)` | `PUT /casas/slot/{slotId}/movel/{movelId}` | updated `Casa` |
-| `darLike(casaId, cb)` | `POST /casas/{id}/like` | updated `Casa` |
+| `colocarMovelNoSlot(slotId, movelId, cb)` | `PUT /casas/slot/{slotId}/movel/{movelId}` | updated `Casa` (legacy; unused by the free grid) |
+| `salvarLayoutCasa(casaId, placements, cb)` | `PUT /casas/{id}/layout` | updated `Casa` (whole-house save) |
+| `darLike(casaId, jogadorId, cb)` | `POST /casas/{id}/like?jogadorId=…` | updated `Casa` (toggles the visitor's like; one per visitor) |
+| `fetchJogadorPorId(id, cb)` | `GET /jogadores/{id}` | `Jogador` (refresh / resolve a friend) |
+| `enviarSolicitacao(remetenteId, destinatarioId, cb)` | `POST /solicitacoes?…` | `SolicitacaoAmizade` |
+| `aceitarSolicitacao(id, cb)` / `recusarSolicitacao(id, cb)` | `POST /solicitacoes/{id}/aceitar`\|`/recusar` | `SolicitacaoAmizade` |
+| `listarSolicitacoesRecebidas(jogadorId, cb)` | `GET /solicitacoes/recebidas/{id}` | `List<SolicitacaoAmizade>` |
+| `removerAmigo(jogadorId, amigoId, cb)` | `DELETE /solicitacoes/amizade/{jogadorId}/{amigoId}` | 204 |
+
+### Admin / debug endpoints (curl-only, not in `ApiClient`)
+
+Handy for seeding a test account; not used by the game client:
+
+| HTTP | Effect |
+|---|---|
+| `POST /api/jogadores/{id}/creditar?valor=N` | Add N coins (does **not** touch `tempoEstudado`/ranking) |
+| `DELETE /api/jogadores/{id}/inventario` | Empty the player's furniture inventory |
+| `POST /api/loja` (body: a `Movel` JSON) | Add a catalog item |
+| `DELETE /api/loja/{id}` | Remove a catalog item |
+
+Note: each catalog móvel can be bought **at most once** per player — `comprarMovel`
+returns 400 `Móvel já comprado` on a repeat, and the store hides owned items.
 
 ### Where the logged-in player lives
 

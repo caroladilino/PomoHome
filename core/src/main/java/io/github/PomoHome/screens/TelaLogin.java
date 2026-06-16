@@ -3,7 +3,6 @@ package io.github.PomoHome.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -15,6 +14,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.github.PomoHome.Main;
 import io.github.PomoHome.model.Jogador;
 import io.github.PomoHome.network.ApiClient;
+import io.github.PomoHome.ui.Palette;
 
 /**
  * Startup screen. The user either logs in or creates a new account, both
@@ -56,7 +56,7 @@ public class TelaLogin implements Screen {
         stage.addActor(root);
 
         Label titulo = new Label("PomoHome", main.getSkin());
-        titulo.setColor(Color.WHITE);
+        titulo.setColor(Palette.TEXTO_CLARO);
 
         campoUsuario = new TextField("", main.getSkin());
         campoUsuario.setMessageText("usuário");
@@ -67,7 +67,7 @@ public class TelaLogin implements Screen {
         campoSenha.setPasswordCharacter('*');
 
         mensagem = new Label("", main.getSkin());
-        mensagem.setColor(Color.SCARLET);
+        mensagem.setColor(Palette.ERRO);
         mensagem.setWrap(true);
 
         botaoEntrar = new TextButton("Entrar", main.getSkin());
@@ -127,7 +127,7 @@ public class TelaLogin implements Screen {
         }
 
         setOcupado(true);
-        mensagem.setColor(Color.LIGHT_GRAY);
+        mensagem.setColor(Palette.NEUTRO);
         mensagem.setText(criarConta ? "Criando conta..." : "Entrando...");
 
         ApiClient.Callback<Jogador> cb = new ApiClient.Callback<Jogador>() {
@@ -162,7 +162,7 @@ public class TelaLogin implements Screen {
     }
 
     private void mostrarErro(String texto) {
-        mensagem.setColor(Color.SCARLET);
+        mensagem.setColor(Palette.ERRO);
         mensagem.setText(texto == null ? "Erro inesperado." : texto);
     }
 
@@ -174,7 +174,7 @@ public class TelaLogin implements Screen {
 
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.12f, 0.12f, 0.16f, 1f);
+        ScreenUtils.clear(Palette.ceu(main.getJogo().getCicloDiaNoite().fatorNoite()));
         stage.act(delta);
         stage.draw();
     }

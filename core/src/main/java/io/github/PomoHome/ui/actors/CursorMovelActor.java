@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import io.github.PomoHome.model.Movel;
+import io.github.PomoHome.ui.Palette;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
 import java.util.function.Supplier;
@@ -18,7 +19,7 @@ import java.util.function.Supplier;
  */
 public class CursorMovelActor extends Actor {
 
-    private static final Color COR = Color.valueOf("#8B9BB4");
+    private static final Color COR = Palette.TILE_OCUPADO;
     private static final float LADO = 60f;
 
     private final Supplier<Movel> naMao;

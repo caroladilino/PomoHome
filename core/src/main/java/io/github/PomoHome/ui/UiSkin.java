@@ -29,13 +29,7 @@ public final class UiSkin {
 
     private UiSkin() { }
 
-    // Palette — kept here so every screen looks consistent.
-    private static final Color BG_FIELD   = new Color(1f, 1f, 1f, 0.10f);
-    private static final Color CURSOR      = Color.WHITE;
-    private static final Color SELECTION   = new Color(0.30f, 0.55f, 0.95f, 0.40f);
-    private static final Color BTN_UP      = new Color(0.20f, 0.45f, 0.85f, 1f);
-    private static final Color BTN_DOWN    = new Color(0.14f, 0.32f, 0.62f, 1f);
-    private static final Color BTN_DISABLED = new Color(0.35f, 0.35f, 0.40f, 1f);
+    // All colors come from the central Palette so every screen stays in harmony.
 
     public static Skin create() {
         Skin skin = new Skin();
@@ -66,9 +60,9 @@ public final class UiSkin {
         tf.font = font;
         tf.fontColor = Color.WHITE;
         tf.messageFontColor = new Color(1f, 1f, 1f, 0.45f);
-        tf.cursor = skin.newDrawable("white", CURSOR);
-        tf.selection = skin.newDrawable("white", SELECTION);
-        Drawable fieldBg = skin.newDrawable("white", BG_FIELD);
+        tf.cursor = skin.newDrawable("white", Color.WHITE);
+        tf.selection = skin.newDrawable("white", Palette.CAMPO_SELECAO);
+        Drawable fieldBg = skin.newDrawable("white", Palette.CAMPO_FUNDO);
         fieldBg.setLeftWidth(8f);
         fieldBg.setRightWidth(8f);
         fieldBg.setTopHeight(6f);
@@ -76,40 +70,55 @@ public final class UiSkin {
         tf.background = fieldBg;
         skin.add("default", tf);
 
-        // --- TextButton ---
+        // --- TextButton (default) --- calm sage green with dark parchment text;
+        // the single button look shared across every screen. Reads equally well on
+        // the dark background (login/ranking/amigos) and the cream panel.
         TextButton.TextButtonStyle tb = new TextButton.TextButtonStyle();
         tb.font = font;
-        tb.up = pad(skin.newDrawable("white", BTN_UP));
-        tb.down = pad(skin.newDrawable("white", BTN_DOWN));
-        tb.over = pad(skin.newDrawable("white", BTN_DOWN));
-        tb.disabled = pad(skin.newDrawable("white", BTN_DISABLED));
-        tb.fontColor = Color.WHITE;
-        tb.disabledFontColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+        tb.up = pad(skin.newDrawable("white", Palette.SAGE));
+        tb.down = pad(skin.newDrawable("white", Palette.SAGE_PRESS));
+        tb.over = pad(skin.newDrawable("white", Palette.SAGE_HOVER));
+        tb.disabled = pad(skin.newDrawable("white", Palette.DESABILITADO));
+        tb.fontColor = Palette.TEXTO_ESCURO;
+        tb.disabledFontColor = Palette.DESABILITADO_TEXTO;
         skin.add("default", tb);
 
-        // --- TextButton "rosa" (pink) --- the main game menu (TelaJogo) keeps the
-        // prototype's pink buttons with dark text, distinct from the blue default.
-        TextButton.TextButtonStyle tbRosa = new TextButton.TextButtonStyle();
-        tbRosa.font = font;
-        tbRosa.up = pad(skin.newDrawable("white", Color.valueOf("#E58F8F")));
-        tbRosa.down = pad(skin.newDrawable("white", Color.valueOf("#C97A7A")));
-        tbRosa.over = pad(skin.newDrawable("white", Color.valueOf("#D88585")));
-        tbRosa.disabled = pad(skin.newDrawable("white", BTN_DISABLED));
-        tbRosa.fontColor = Color.BLACK;
-        tbRosa.disabledFontColor = new Color(0.75f, 0.75f, 0.75f, 1f);
-        skin.add("rosa", tbRosa);
+        // --- TextButton "rosa" --- kept as a style key for backward compatibility
+        // (the game menu + TelaVisita ask for it), now the same harmonized sage as
+        // the default. The name is historical; there is no longer any pink in the UI.
+        skin.add("rosa", tb);
 
-        // --- ScrollPane (needed by TelaRanking / TelaAmigos lists) ---
-        // Without a registered "default" ScrollPaneStyle, `new ScrollPane(actor,
-        // skin)` throws "No ScrollPaneStyle registered with name: default".
-        ScrollPane.ScrollPaneStyle sp = new ScrollPane.ScrollPaneStyle();
-        sp.vScroll = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.06f));
-        sp.vScrollKnob = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.25f));
-        sp.hScroll = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.06f));
-        sp.hScrollKnob = skin.newDrawable("white", new Color(1f, 1f, 1f, 0.25f));
-        skin.add("default", sp);
+        // --- ScrollPane ---
+        // Two styles: "default" for the dark screens (translucent light bars) and
+        // "painel" for the parchment game panel (taupe track + sage knob, which
+        // reads against the cream). Both give the bar a real width — a bare 1×1
+        // drawable renders a 1px sliver you can't see; the knob being shorter than
+        // the track is what signals "there's more furniture below".
+        skin.add("default", barraRolagem(skin,
+                new Color(1f, 1f, 1f, 0.10f), new Color(1f, 1f, 1f, 0.38f)));
+        skin.add("painel", barraRolagem(skin, Palette.PERGAMINHO_BORDA, Palette.SAGE_PRESS));
 
         return skin;
+    }
+
+    private static final float LARGURA_BARRA = 8f;
+
+    /** A {@link ScrollPane.ScrollPaneStyle} with a visible, fixed-width scrollbar. */
+    private static ScrollPane.ScrollPaneStyle barraRolagem(Skin skin, Color trilho, Color botao) {
+        ScrollPane.ScrollPaneStyle sp = new ScrollPane.ScrollPaneStyle();
+        sp.vScroll = barra(skin, trilho);
+        sp.vScrollKnob = barra(skin, botao);
+        sp.hScroll = barra(skin, trilho);
+        sp.hScrollKnob = barra(skin, botao);
+        return sp;
+    }
+
+    /** A 1×1 tinted drawable forced to {@link #LARGURA_BARRA} so the bar is visible. */
+    private static Drawable barra(Skin skin, Color cor) {
+        Drawable d = skin.newDrawable("white", cor);
+        d.setMinWidth(LARGURA_BARRA);
+        d.setMinHeight(LARGURA_BARRA);
+        return d;
     }
 
     /**

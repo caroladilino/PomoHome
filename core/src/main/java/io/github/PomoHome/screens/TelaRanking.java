@@ -17,6 +17,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.github.PomoHome.Main;
 import io.github.PomoHome.model.Jogador;
+import io.github.PomoHome.ui.Palette;
 
 import java.util.List;
 
@@ -56,7 +57,7 @@ public class TelaRanking implements Screen {
         });
 
         statusLabel = new Label("Carregando...", main.getSkin());
-        statusLabel.setColor(Color.LIGHT_GRAY);
+        statusLabel.setColor(Palette.NEUTRO);
 
         listaTabela = new Table();
         ScrollPane scroll = new ScrollPane(listaTabela, main.getSkin());
@@ -85,7 +86,7 @@ public class TelaRanking implements Screen {
                 main.getApiClient(),
                 () -> Gdx.app.postRunnable(this::reconstruirTabela),
                 () -> Gdx.app.postRunnable(() -> {
-                    statusLabel.setColor(Color.SCARLET);
+                    statusLabel.setColor(Palette.ERRO);
                     statusLabel.setText("Não foi possível carregar o ranking.");
                 }));
     }
@@ -105,7 +106,7 @@ public class TelaRanking implements Screen {
         int posicao = 1;
         for (Jogador j : jogadores) {
             boolean souEu = meuId != null && meuId.equals(j.getId());
-            Color cor = souEu ? Color.GOLD : Color.WHITE;
+            Color cor = souEu ? Palette.OURO : Palette.TEXTO_CLARO;
 
             Label lPos = new Label(posicao + "º", main.getSkin());
             Label lNome = new Label(j.getUsername(), main.getSkin());
@@ -124,7 +125,7 @@ public class TelaRanking implements Screen {
 
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.12f, 0.12f, 0.16f, 1f);
+        ScreenUtils.clear(Palette.ceu(main.getJogo().getCicloDiaNoite().fatorNoite()));
         stage.act(delta);
         stage.draw();
     }
