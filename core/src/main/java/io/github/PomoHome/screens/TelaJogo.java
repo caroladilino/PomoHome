@@ -28,13 +28,17 @@ import io.github.PomoHome.model.Casa;
 import io.github.PomoHome.model.Jogador;
 import io.github.PomoHome.model.Jogo;
 import io.github.PomoHome.model.Movel;
-import io.github.PomoHome.model.Timer;
+import io.github.PomoHome.model.timer.ContextoTimer;
+import io.github.PomoHome.model.timer.EstadoTimer;
 import io.github.PomoHome.network.ApiClient;
 import io.github.PomoHome.ui.actors.CasaActor;
 import io.github.PomoHome.ui.actors.CeuActor;
 import io.github.PomoHome.ui.actors.CursorMovelActor;
 import io.github.PomoHome.ui.actors.PainelActor;
 import io.github.PomoHome.ui.actors.TimerRingActor;
+import io.github.PomoHome.ui.comandos.ComandoColocar;
+import io.github.PomoHome.ui.comandos.ComandoRemover;
+import io.github.PomoHome.ui.comandos.GerenciadorComandos;
 import io.github.PomoHome.ui.Palette;
 import space.earlygrey.shapedrawer.ShapeDrawer;
 
@@ -73,12 +77,13 @@ import java.util.Set;
  */
 public class TelaJogo implements Screen {
 
-    private enum EstadoTimer { PADRAO, EDITANDO, RODANDO, PAUSADO }
     private enum ModoPainel { TIMER, LOJA, INVENTARIO }
 
     private final Main main;
     private final ApiClient api;
     private final Jogo jogo;
+    private final ContextoTimer ctx;                       // GoF State + Observer
+    private final GerenciadorComandos comandos = new GerenciadorComandos(); // GoF Command
 
     private BitmapFont fonteTimer, fonteBotao;
 
@@ -108,11 +113,10 @@ public class TelaJogo implements Screen {
     // selected tile).
     private CasaActor casaActor;
     private TextField campoNome;
-    private TextButton btnRemover;
+    private TextButton btnRemover, btnDesfazer, btnRefazer;
     private boolean temSelecao = false;
     private final Vector2 tmp = new Vector2();
 
-    private EstadoTimer estadoAtual = EstadoTimer.PADRAO;
     private ModoPainel viewAtual = ModoPainel.TIMER;
     private Movel movelNaMao = null;
 
@@ -126,6 +130,7 @@ public class TelaJogo implements Screen {
         this.main = main;
         this.api = main.getApiClient();
         this.jogo = main.getJogo();
+        this.ctx = jogo.getContextoTimer();
 
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(MUNDO_W, MUNDO_H, camera);
@@ -137,6 +142,11 @@ public class TelaJogo implements Screen {
         fonteBotao = main.getSkin().getFont("default-font"); // 18px body text
 
         construirUi();
+
+        // GoF Observer: react to cycle completion without the timer knowing us.
+        // Registered once here (the screen is cached/reused by Main, so doing this
+        // in show() would subscribe again on every return to the game).
+        ctx.adicionarOuvinte(this::onPomodoroCompleto);
     }
 
     // ---------------------------------------------------------------
@@ -190,9 +200,9 @@ public class TelaJogo implements Screen {
         lblFeedback = new Label("", main.getSkin());
         lblFeedback.setColor(Palette.TEXTO_CLARO);
 
-        aoClicar(btnEsq, this::acaoEsquerda);
-        aoClicar(btnDir, this::acaoDireita);
-        aoClicar(btnCentro, () -> estadoAtual = EstadoTimer.PADRAO);
+        aoClicar(btnEsq, ctx::iniciarOuPausar);
+        aoClicar(btnDir, ctx::editarOuCancelar);
+        aoClicar(btnCentro, ctx::aceitar);
         aoClicar(btnMais, () -> jogo.getTimer().aumentarCiclo());
         aoClicar(btnMenos, () -> jogo.getTimer().diminuirCiclo());
         aoClicar(btnLoja, this::abrirLoja);
@@ -206,28 +216,6 @@ public class TelaJogo implements Screen {
             stage.addActor(b);
         }
         stage.addActor(lblMoeda);
-    }
-
-    /** INICIAR / PAUSAR / RETOMAR (left timer button). */
-    private void acaoEsquerda() {
-        Timer timer = jogo.getTimer();
-        if (estadoAtual == EstadoTimer.PADRAO) {
-            estadoAtual = EstadoTimer.RODANDO;
-            timer.setRodando(true);
-        } else if (correndo()) {
-            timer.iniciarOuPausar();
-            estadoAtual = timer.isRodando() ? EstadoTimer.RODANDO : EstadoTimer.PAUSADO;
-        }
-    }
-
-    /** EDITAR / CANCELAR (right timer button). */
-    private void acaoDireita() {
-        if (estadoAtual == EstadoTimer.PADRAO) {
-            estadoAtual = EstadoTimer.EDITANDO;
-        } else if (correndo()) {
-            estadoAtual = EstadoTimer.PADRAO;
-            jogo.getTimer().resetar();
-        }
     }
 
     /** Store + inventory scroll panes and the shared FECHAR button. */
@@ -258,13 +246,30 @@ public class TelaJogo implements Screen {
 
         btnRemover = botaoRosa("X");
         aoClicar(btnRemover, () -> {
-            if (casaActor.removerSelecionado() != null) {
+            // GoF Command: removal goes through the manager so it can be undone.
+            if (comandos.executar(new ComandoRemover(casaActor))) {
                 reconstruirInventario(); // the removed móvel returns to stock
             }
         });
 
+        // Undo / redo of house edits (GoF Command).
+        btnDesfazer = botaoRosa("DESFAZER");
+        aoClicar(btnDesfazer, () -> {
+            comandos.desfazer();
+            casaActor.limparSelecao();
+            reconstruirInventario();
+        });
+        btnRefazer = botaoRosa("REFAZER");
+        aoClicar(btnRefazer, () -> {
+            comandos.refazer();
+            casaActor.limparSelecao();
+            reconstruirInventario();
+        });
+
         stage.addActor(campoNome);
         stage.addActor(btnRemover);
+        stage.addActor(btnDesfazer);
+        stage.addActor(btnRefazer);
     }
 
     private TextButton botaoRosa(String texto) {
@@ -286,10 +291,6 @@ public class TelaJogo implements Screen {
     private Casa casaDoJogador() {
         Jogador jogador = jogo.getJogadorLogado();
         return jogador != null ? jogador.getCasa() : null;
-    }
-
-    private boolean correndo() {
-        return estadoAtual == EstadoTimer.RODANDO || estadoAtual == EstadoTimer.PAUSADO;
     }
 
     // ---------------------------------------------------------------
@@ -478,6 +479,11 @@ public class TelaJogo implements Screen {
         // first frame and after any resize.
         casaActor.ancoraNome(tmp);
         campoNome.setBounds(tmp.x - 110f, tmp.y - 36f, 220f, 36f);
+        // Undo/redo a row below the name field (still anchored to the grid).
+        float btW = 104f, btH = 36f, gap = 12f, btY = tmp.y - 36f - 44f;
+        btnDesfazer.setBounds(tmp.x - btW - gap / 2f, btY, btW, btH);
+        btnRefazer.setBounds(tmp.x + gap / 2f, btY, btW, btH);
+
         temSelecao = casaActor.centroSelecionado(tmp);
         if (temSelecao) {
             btnRemover.setBounds(tmp.x - 18f, tmp.y + 16f, 36f, 36f);
@@ -520,50 +526,40 @@ public class TelaJogo implements Screen {
     // ---------------------------------------------------------------
 
     private void atualizarLogica(float delta) {
-        Jogador jogador = jogo.getJogadorLogado();
-        if (jogador == null) {
+        if (jogo.getJogadorLogado() == null) {
             return;
         }
-        Timer timer = jogo.getTimer();
         if (feedbackTempo > 0) {
             feedbackTempo -= delta;
         }
-
-        if (estadoAtual == EstadoTimer.RODANDO && timer.atualizar(delta)) {
-            onPomodoroCompleto(jogador, timer);
-        }
-
-        if (!timer.isRodando() && timer.getTempoAtual() <= 0) {
-            estadoAtual = EstadoTimer.PADRAO;
-            timer.resetar();
-        }
+        // GoF State: the current state advances the countdown and, on completion,
+        // transitions to idle and notifies the observers (see onPomodoroCompleto).
+        ctx.atualizar(delta);
     }
 
     /** Updates the menu's per-state button visibility / labels + the coin count. */
     private void atualizarBotoes() {
         boolean timerMode = viewAtual == ModoPainel.TIMER;
-        boolean padrao = timerMode && estadoAtual == EstadoTimer.PADRAO;
-        boolean editando = timerMode && estadoAtual == EstadoTimer.EDITANDO;
-        boolean emExecucao = timerMode && correndo();
+        // GoF State: the current state decides which buttons show and their labels.
+        EstadoTimer estado = ctx.getEstado();
+        boolean iniciarEditar = timerMode && estado.mostraIniciarEditar();
+        boolean navegacao = timerMode && estado.mostraNavegacao();
+        boolean controlesEdicao = timerMode && estado.mostraControlesEdicao();
 
-        btnEsq.setVisible(padrao || emExecucao);
-        btnDir.setVisible(padrao || emExecucao);
-        if (emExecucao) {
-            btnEsq.setText(estadoAtual == EstadoTimer.RODANDO ? "PAUSAR" : "RETOMAR");
-            btnDir.setText("CANCELAR");
-        } else {
-            btnEsq.setText("INICIAR");
-            btnDir.setText("EDITAR");
-        }
-        btnLoja.setVisible(padrao);
-        btnEditarCasa.setVisible(padrao);
-        btnRanking.setVisible(padrao);
-        btnAmigos.setVisible(padrao);
-        btnHistorico.setVisible(padrao);
+        btnEsq.setVisible(iniciarEditar);
+        btnDir.setVisible(iniciarEditar);
+        btnEsq.setText(estado.textoBotaoEsquerdo());
+        btnDir.setText(estado.textoBotaoDireito());
 
-        btnCentro.setVisible(editando);
-        btnMais.setVisible(editando);
-        btnMenos.setVisible(editando);
+        btnLoja.setVisible(navegacao);
+        btnEditarCasa.setVisible(navegacao);
+        btnRanking.setVisible(navegacao);
+        btnAmigos.setVisible(navegacao);
+        btnHistorico.setVisible(navegacao);
+
+        btnCentro.setVisible(controlesEdicao);
+        btnMais.setVisible(controlesEdicao);
+        btnMenos.setVisible(controlesEdicao);
 
         btnFechar.setVisible(!timerMode);
         btnFechar.setText(viewAtual == ModoPainel.LOJA ? "SAIR" : "FECHAR");
@@ -587,6 +583,11 @@ public class TelaJogo implements Screen {
         }
         // The "X" only shows in edit mode when a placed móvel is selected.
         btnRemover.setVisible(editandoCasa && temSelecao);
+        // Undo/redo show throughout edit mode, disabled at the ends of history.
+        btnDesfazer.setVisible(editandoCasa);
+        btnRefazer.setVisible(editandoCasa);
+        btnDesfazer.setDisabled(!comandos.podeDesfazer());
+        btnRefazer.setDisabled(!comandos.podeRefazer());
 
         lblMoeda.setText("$" + (jogador != null ? jogador.getSaldo() : 0));
 
@@ -630,8 +631,8 @@ public class TelaJogo implements Screen {
         } else if (cliqueNoPainel(mx, my)) {
             movelNaMao = null;        // dropped back into the inventory
             reconstruirInventario();
-        } else if (casaActor.tentarColocar(mx, my, movelNaMao)) {
-            movelNaMao = null;        // placed on the grid
+        } else if (comandos.executar(new ComandoColocar(casaActor, movelNaMao, mx, my))) {
+            movelNaMao = null;        // placed on the grid (GoF Command — undoable)
             reconstruirInventario();
         }
     }
@@ -649,6 +650,7 @@ public class TelaJogo implements Screen {
     private void abrirInventario() {
         viewAtual = ModoPainel.INVENTARIO;
         movelNaMao = null;
+        comandos.limpar(); // undo history is per edit session
         casaActor.limparSelecao();
         Casa casa = casaDoJogador();
         campoNome.setText(casa != null && casa.getNome() != null ? casa.getNome() : "");
@@ -689,10 +691,14 @@ public class TelaJogo implements Screen {
     // Backend sync
     // ---------------------------------------------------------------
 
-    private void onPomodoroCompleto(Jogador jogador, Timer timer) {
-        estadoAtual = EstadoTimer.PADRAO;
-        final int minutos = timer.minutosDoCiclo();
-        if (jogador.getId() == null || minutos <= 0) {
+    /**
+     * GoF Observer callback (registered on {@link ContextoTimer} in the
+     * constructor): a cycle just completed — credit the session on the server and
+     * refresh coins / study time. The state machine already returned to idle.
+     */
+    private void onPomodoroCompleto(final int minutos) {
+        final Jogador jogador = jogo.getJogadorLogado();
+        if (jogador == null || jogador.getId() == null || minutos <= 0) {
             return;
         }
         api.registrarSessao(jogador.getId(), minutos, new ApiClient.Callback<io.github.PomoHome.model.SessaoEstudo>() {

@@ -27,7 +27,7 @@ import space.earlygrey.shapedrawer.ShapeDrawer;
  *
  * <p>The actor is {@link Touchable#disabled} for the Stage: clicks are routed by
  * the screen's own input handler (click-to-place was kept over drag-and-drop),
- * which calls {@link #selecionarSob}/{@link #tentarColocar}/{@link #removerSelecionado}.
+ * which calls {@link #selecionarSob}/{@link #tentarColocar}/{@link #removerInstancia}.
  * Placement state mirrors into {@link Casa#getPlacements()} (keyed by anchor tile
  * "L{row}C{col}") so it round-trips through the backend layout endpoint.
  *
@@ -116,47 +116,53 @@ public class CasaActor extends Actor {
         selecionado = -1;
     }
 
-    /** Remove the selected móvel (anchor + footprint). Returns it, or null. */
-    public Movel removerSelecionado() {
-        if (!editavel || selecionado < 0) {
-            return null;
-        }
-        Movel removido = ocupacao[selecionado];
-        if (removido == null) {
-            return null;
-        }
-        if (casa != null) {
-            casa.removerMovel(removido);
-        }
-        for (int i = 0; i < ocupacao.length; i++) {
-            if (ocupacao[i] == removido) {
-                ocupacao[i] = null;
-                anchor[i] = false;
-            }
-        }
-        selecionado = -1;
-        return removido;
-    }
-
-    /** Try to drop {@code m} under the mouse (world coords). Returns true if placed. */
-    public boolean tentarColocar(float worldX, float worldY, Movel m) {
+    /**
+     * Remove a specific móvel instance (anchor + footprint) by identity, both
+     * from the visual grid and the model. Returns true if it was present. Used to
+     * apply/undo the {@code ComandoRemover}/{@code ComandoColocar} edits.
+     */
+    public boolean removerInstancia(Movel m) {
         if (!editavel || m == null) {
             return false;
         }
+        if (casa != null) {
+            casa.removerMovel(m);
+        }
+        boolean encontrado = false;
+        for (int i = 0; i < ocupacao.length; i++) {
+            if (ocupacao[i] == m) {
+                ocupacao[i] = null;
+                anchor[i] = false;
+                encontrado = true;
+            }
+        }
+        selecionado = -1;
+        return encontrado;
+    }
+
+    /**
+     * Try to drop {@code m} under the mouse (world coords). Returns the anchor
+     * tile name it landed on ("L{row}C{col}"), or {@code null} if it could not be
+     * placed (off-grid or overlapping). The tile name lets a command undo it.
+     */
+    public String tentarColocar(float worldX, float worldY, Movel m) {
+        if (!editavel || m == null) {
+            return null;
+        }
         int[] rc = anchorSob(worldX, worldY);
         if (rc == null) {
-            return false;
+            return null;
         }
         int row = rc[0], col = rc[1];
         int w = m.getWidthInTiles();
         int h = m.getHeightInTiles();
         if (row + w > MATRIZ || col + h > MATRIZ) {
-            return false; // off the grid
+            return null; // off the grid
         }
         for (int r = row; r < row + w; r++) {
             for (int c = col; c < col + h; c++) {
                 if (ocupacao[r * MATRIZ + c] != null) {
-                    return false; // overlaps an existing piece
+                    return null; // overlaps an existing piece
                 }
             }
         }
@@ -165,7 +171,41 @@ public class CasaActor extends Actor {
             casa.colocar(nomeTile(row, col), m);
         }
         selecionado = -1;
-        return true;
+        return nomeTile(row, col);
+    }
+
+    /**
+     * Re-place {@code m} at a known anchor tile without hit-testing — used to undo
+     * a removal (the tile was a valid placement before). Mirrors into the model.
+     */
+    public void recolocarEm(String tileName, Movel m) {
+        int[] rc = parseTile(tileName);
+        if (rc == null || m == null) {
+            return;
+        }
+        ocuparArea(rc[0], rc[1], m);
+        if (casa != null) {
+            casa.colocar(tileName, m);
+        }
+    }
+
+    /** The currently selected placed móvel, or null. */
+    public Movel movelSelecionado() {
+        return selecionado < 0 ? null : ocupacao[selecionado];
+    }
+
+    /** Anchor tile name ("L{row}C{col}") of the selected móvel, or null. */
+    public String tileSelecionadoAncora() {
+        Movel m = movelSelecionado();
+        if (m == null) {
+            return null;
+        }
+        for (int i = 0; i < ocupacao.length; i++) {
+            if (ocupacao[i] == m && anchor[i]) {
+                return nomeTile(i / MATRIZ, i % MATRIZ);
+            }
+        }
+        return null;
     }
 
     /** True if there is a selected tile; fills {@code out} with its world centre. */
